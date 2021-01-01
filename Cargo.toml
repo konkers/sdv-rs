@@ -1,0 +1,12 @@
+[package]
+name = "sdv"
+version = "0.1.0"
+authors = ["Erik Gilling <konkers@konkers.net>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+xnb = { path = "../xnb-rs" }
+anyhow = "1.0"
+nom = "6.0.1"

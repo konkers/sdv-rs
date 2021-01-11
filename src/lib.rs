@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Context, Result};
+use indexmap::IndexMap;
 use nom::{
     branch::alt,
     bytes::complete::{is_not, tag},
@@ -8,10 +9,15 @@ use nom::{
     sequence::{pair, preceded, terminated, tuple},
     IResult,
 };
-use std::{collections::HashMap, convert::TryInto, fs::File, io::BufReader, path::Path};
+use serde::Deserialize;
+use std::{convert::TryInto, fs::File, io::BufReader, path::Path};
 use xnb::Xnb;
 
-#[derive(Clone, Debug, PartialEq)]
+pub mod save;
+pub use save::SaveGame;
+
+#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
 pub enum Season {
     Spring,
     Summer,
@@ -150,20 +156,42 @@ pub enum Fish {
 }
 
 impl Fish {
-    pub fn load<P: AsRef<Path>>(file: P) -> Result<HashMap<i32, Self>> {
+    pub fn load<P: AsRef<Path>>(file: P) -> Result<IndexMap<i32, Self>> {
         let f = File::open(file).context("Can't open fish file")?;
         let mut r = BufReader::new(f);
         let xnb = Xnb::new(&mut r).context("Can't parse fish xnb file")?;
 
-        let entries: HashMap<i32, String> = xnb.content.try_into()?;
-        let mut fishes = HashMap::new();
+        let entries: IndexMap<i32, String> = xnb.content.try_into()?;
+        let mut fishes = IndexMap::new();
         for (k, v) in &entries {
             let (_, fish) =
                 Self::parse(&v).map_err(|e| anyhow!("Error parsing fish \"{}\": {}", v, e))?;
+
             fishes.insert(*k, fish);
         }
 
         Ok(fishes)
+    }
+
+    pub fn name(&self) -> &str {
+        match self {
+            Self::Line { name, .. } => &name,
+            Self::Trap { name, .. } => &name,
+        }
+    }
+
+    pub fn in_season(&self, season: &Season) -> bool {
+        match self {
+            Self::Line { seasons, .. } => {
+                for s in seasons {
+                    if s == season {
+                        return true;
+                    }
+                }
+                false
+            }
+            Self::Trap { .. } => true,
+        }
     }
 
     fn parse(i: &str) -> IResult<&str, Self> {
@@ -196,6 +224,16 @@ impl Fish {
         let (i, depth_mult) = float(i)?;
         let (i, _) = tag("/")(i)?;
         let (i, min_level) = decimal(i)?;
+
+        // The legendary fishes are locked to seasons through a different
+        // method than the XNB data.  We fix them up here.
+        let seasons = match name {
+            "Crimsonfish" => vec![Season::Summer],
+            "Angler" => vec![Season::Fall],
+            "Legend" => vec![Season::Spring],
+            "Glacierfish" => vec![Season::Winter],
+            _ => seasons,
+        };
 
         Ok((
             i,

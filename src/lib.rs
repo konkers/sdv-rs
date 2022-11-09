@@ -1,3 +1,4 @@
+use anyhow::{anyhow, Result};
 use nom::{
     branch::alt,
     bytes::complete::is_not,
@@ -8,6 +9,7 @@ use nom::{
     sequence::{pair, preceded, terminated, tuple},
     IResult, Parser,
 };
+use roxmltree::Node;
 use serde::Deserialize;
 
 pub mod gamedata;
@@ -32,6 +34,14 @@ impl Season {
             value(Season::Fall, tag("fall")),
             value(Season::Winter, tag("winter")),
         ))(i)
+    }
+
+    fn from_node(node: Node) -> Result<Self> {
+        let text = node.text().unwrap_or("");
+        let (_, season) =
+            Self::parse(text).map_err(|e| anyhow!("error parsing season {}: {}", text, e))?;
+
+        Ok(season)
     }
 }
 

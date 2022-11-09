@@ -59,20 +59,20 @@ pub struct Bundle {
 }
 
 impl Bundle {
-    pub fn load<P: AsRef<Path>>(file: P) -> Result<Vec<Self>> {
+    pub fn load<P: AsRef<Path>>(file: P) -> Result<IndexMap<i32, Self>> {
         let f = File::open(file).context("Can't open bundle file")?;
         let mut r = BufReader::new(f);
         let xnb = Xnb::new(&mut r).context("Can't parse bundle xnb file")?;
 
         let entries: IndexMap<String, String> = xnb.content.try_into()?;
-        let mut bundles = Vec::new();
+        let mut bundles = IndexMap::new();
 
         for (key, value) in &entries {
             let (_, (room, sprite_id)) = Bundle::parse_key(key).unwrap();
 
             let (_, bundle) = Self::parse(room, sprite_id, &value)
                 .map_err(|e| anyhow!("Error parsing bundle \"{}\": {}", value, e))?;
-            bundles.push(bundle);
+            bundles.insert(sprite_id, bundle);
         }
         Ok(bundles)
     }

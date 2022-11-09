@@ -1,10 +1,10 @@
 use anyhow::{anyhow, Context, Result};
 use indexmap::IndexMap;
-use nom::{branch::alt, bytes::complete::tag, combinator::value, multi::separated_list1, IResult};
+use nom::{branch::alt, bytes::complete::tag, combinator::value, multi::many1, IResult};
 use std::{convert::TryInto, fs::File, io::BufReader, path::Path};
 use xnb::Xnb;
 
-use crate::{decimal, field, float, Season, Weather};
+use crate::{decimal, field, field_value, float, sub_field_value, Season, Weather};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum FishBehavior {
@@ -36,8 +36,8 @@ pub enum TrapLocation {
 impl TrapLocation {
     fn parse(i: &str) -> IResult<&str, Self> {
         alt((
-            value(TrapLocation::Ocean, tag("ocean")),
-            value(TrapLocation::Freshwater, tag("freshwater")),
+            value(TrapLocation::Ocean, tag("ocean/")),
+            value(TrapLocation::Freshwater, tag("freshwater/")),
         ))(i)
     }
 }
@@ -50,18 +50,14 @@ pub struct BaitAffinity {
 
 impl BaitAffinity {
     fn parse(i: &str) -> IResult<&str, Self> {
-        let (i, bait_id) = decimal(i)?;
-        let (i, _) = tag(" ")(i)?;
-        let (i, affinity) = float(i)?;
+        let (i, bait_id) = sub_field_value(decimal)(i)?;
+        let (i, affinity) = sub_field_value(float)(i)?;
 
         Ok((i, BaitAffinity { bait_id, affinity }))
     }
 
     fn parse_list(i: &str) -> IResult<&str, Vec<Self>> {
-        alt((
-            value(vec![], tag("-1")),
-            separated_list1(tag(" "), BaitAffinity::parse),
-        ))(i)
+        alt((value(vec![], tag("-1")), many1(BaitAffinity::parse)))(i)
     }
 }
 
@@ -73,9 +69,8 @@ pub struct TimeSpan {
 
 impl TimeSpan {
     fn parse(i: &str) -> IResult<&str, Self> {
-        let (i, start) = decimal(i)?;
-        let (i, _) = tag(" ")(i)?;
-        let (i, end) = decimal(i)?;
+        let (i, start) = sub_field_value(decimal)(i)?;
+        let (i, end) = sub_field_value(decimal)(i)?;
 
         Ok((i, TimeSpan { start, end }))
     }
@@ -153,30 +148,18 @@ impl Fish {
 
     fn parse_line(i: &str) -> IResult<&str, Self> {
         let (i, name) = field(i)?;
-        let (i, _) = tag("/")(i)?;
-        let (i, difficulty) = decimal(i)?;
-        let (i, _) = tag("/")(i)?;
-        let (i, behavior) = FishBehavior::parse(i)?;
-        let (i, _) = tag("/")(i)?;
-        let (i, min_size) = decimal(i)?;
-        let (i, _) = tag("/")(i)?;
-        let (i, max_size) = decimal(i)?;
-        let (i, _) = tag("/")(i)?;
-        let (i, times) = separated_list1(tag(" "), TimeSpan::parse)(i)?;
-        let (i, _) = tag("/")(i)?;
-        let (i, seasons) = separated_list1(tag(" "), Season::parse)(i)?;
-        let (i, _) = tag("/")(i)?;
-        let (i, weather) = Weather::parse(i)?;
-        let (i, _) = tag("/")(i)?;
-        let (i, bait_affinity) = BaitAffinity::parse_list(i)?;
-        let (i, _) = tag("/")(i)?;
-        let (i, min_depth) = decimal(i)?;
-        let (i, _) = tag("/")(i)?;
-        let (i, spawn_mult) = float(i)?;
-        let (i, _) = tag("/")(i)?;
-        let (i, depth_mult) = float(i)?;
-        let (i, _) = tag("/")(i)?;
-        let (i, min_level) = decimal(i)?;
+        let (i, difficulty) = field_value(decimal)(i)?;
+        let (i, behavior) = field_value(FishBehavior::parse)(i)?;
+        let (i, min_size) = field_value(decimal)(i)?;
+        let (i, max_size) = field_value(decimal)(i)?;
+        let (i, times) = many1(TimeSpan::parse)(i)?;
+        let (i, seasons) = many1(sub_field_value(Season::parse))(i)?;
+        let (i, weather) = field_value(Weather::parse)(i)?;
+        let (i, bait_affinity) = field_value(BaitAffinity::parse_list)(i)?;
+        let (i, min_depth) = field_value(decimal)(i)?;
+        let (i, spawn_mult) = field_value(float)(i)?;
+        let (i, depth_mult) = field_value(float)(i)?;
+        let (i, min_level) = field_value(decimal)(i)?;
 
         // The legendary fishes are locked to seasons through a different
         // method than the XNB data.  We fix them up here.
@@ -210,13 +193,11 @@ impl Fish {
 
     fn parse_trap(i: &str) -> IResult<&str, Self> {
         let (i, name) = field(i)?;
-        let (i, _) = tag("/trap/")(i)?;
+        let (i, _) = tag("trap/")(i)?;
         let (i, weight) = float(i)?;
         let (i, _) = tag("/")(i)?;
         let (i, bait_affinity) = BaitAffinity::parse_list(i)?;
-        let (i, _) = tag("/")(i)?;
         let (i, location) = TrapLocation::parse(i)?;
-        let (i, _) = tag("/")(i)?;
         let (i, min_size) = decimal(i)?;
         let (i, _) = tag("/")(i)?;
         let (i, max_size) = decimal(i)?;

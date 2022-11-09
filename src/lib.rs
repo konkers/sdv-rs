@@ -6,7 +6,7 @@ use nom::{
     combinator::{map_res, opt, recognize, value},
     multi::{many0, many1},
     sequence::{pair, preceded, terminated, tuple},
-    IResult,
+    IResult, Parser,
 };
 use serde::Deserialize;
 
@@ -52,6 +52,16 @@ impl Weather {
     }
 }
 
+fn field_seperator(input: &str) -> IResult<&str, ()> {
+    let (i, _) = opt(tag("/"))(input)?;
+    Ok((i, ()))
+}
+
+fn sub_field_seperator(input: &str) -> IResult<&str, ()> {
+    let (i, _) = opt(alt((tag("/"), tag(" "))))(input)?;
+    Ok((i, ()))
+}
+
 fn decimal(input: &str) -> IResult<&str, i32> {
     map_res(
         recognize(pair(
@@ -86,10 +96,48 @@ fn float(input: &str) -> IResult<&str, f32> {
     )(input)
 }
 
-pub fn field(i: &str) -> IResult<&str, &str> {
-    recognize(many0(is_not("/")))(i)
+fn field(i: &str) -> IResult<&str, &str> {
+    let (i, value) = recognize(many0(is_not("/")))(i)?;
+    let (i, _) = opt(field_seperator)(i)?;
+    Ok((i, value))
 }
 
-pub fn sub_field(i: &str) -> IResult<&str, &str> {
-    recognize(many0(is_not(" /")))(i)
+pub fn field_value<'a, O2, G>(mut f: G) -> impl FnMut(&'a str) -> IResult<&'a str, O2>
+where
+    G: FnMut(&'a str) -> IResult<&'a str, O2>,
+{
+    move |input: &str| {
+        let (i, o1) = field.parse(input)?;
+        let (_, value) = f(o1)?;
+
+        Ok((i, value))
+    }
+}
+
+fn sub_field(i: &str) -> IResult<&str, &str> {
+    let (i, value) = recognize(many0(is_not(" /")))(i)?;
+    let (i, _) = opt(sub_field_seperator)(i)?;
+    Ok((i, value))
+}
+
+pub fn sub_field_value<'a, O2, G>(mut f: G) -> impl FnMut(&'a str) -> IResult<&'a str, O2>
+where
+    G: FnMut(&'a str) -> IResult<&'a str, O2>,
+{
+    move |input: &str| {
+        let (i, o1) = sub_field.parse(input)?;
+        let (_, value) = f(o1)?;
+
+        Ok((i, value))
+    }
+}
+
+fn remaining_fields<'a>(i: &'a str) -> IResult<&'a str, Vec<String>> {
+    let (i, fields) = many0(|i: &'a str| {
+        let (i, value) = recognize(many1(is_not("/")))(i)?;
+        let (i, _) = opt(field_seperator)(i)?;
+        Ok((i, value))
+    })(i)?;
+
+    Ok((i, fields.iter().map(|s| s.to_string()).collect()))
 }

@@ -36,7 +36,7 @@ impl Season {
         ))(i)
     }
 
-    fn from_node(node: Node) -> Result<Self> {
+    fn from_node(node: &Node) -> Result<Self> {
         let text = node.text().unwrap_or("");
         let (_, season) =
             Self::parse(text).map_err(|e| anyhow!("error parsing season {}: {}", text, e))?;

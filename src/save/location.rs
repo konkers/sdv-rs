@@ -11,10 +11,10 @@ pub struct Location {
 }
 
 impl Location {
-    pub(crate) fn from_node(node: Node) -> Result<Location> {
+    pub(crate) fn from_node(node: &Node) -> Result<Location> {
         let name = child_node_text(node, "name")?;
         let bundles = match child_node(node, "bundles").ok() {
-            Some(n) => Some(map_from_node(n, "int", array_of_bool)?),
+            Some(n) => Some(map_from_node(&n, "int", array_of_bool)?),
             None => None,
         };
 

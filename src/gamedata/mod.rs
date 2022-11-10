@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use indexmap::IndexMap;
 use std::path::{Path, PathBuf};
 
@@ -38,5 +38,11 @@ impl GameData {
             fish,
             objects,
         })
+    }
+
+    pub fn get_object(&self, id: i32) -> Result<&Object> {
+        self.objects
+            .get(&id)
+            .ok_or(anyhow!("Can't find game object {}", id))
     }
 }

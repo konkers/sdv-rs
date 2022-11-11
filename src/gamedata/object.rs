@@ -6,12 +6,11 @@ use nom::{
     combinator::{map_res, opt, value},
     IResult,
 };
-use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use std::{convert::TryInto, fs::File, io::BufReader, path::Path};
 use xnb::Xnb;
 
-use crate::{decimal, field, field_value, remaining_fields, sub_field_value};
+use crate::{decimal, field, field_value, remaining_fields, sub_field_value, ObjectCategory};
 
 #[derive(Clone, Eq, Debug, Hash, PartialEq)]
 pub enum ObjectType {
@@ -25,35 +24,6 @@ pub enum ObjectType {
     Quest,
     Ring,
     Seeds,
-}
-
-#[derive(Clone, Eq, Debug, FromPrimitive, Hash, PartialEq)]
-pub enum ObjectCategory {
-    Gem = -2,
-    Fish = -4,
-    Egg = -5,
-    Milk = -6,
-    Cooking = -7,
-    Crafting = -8,
-    Mineral = -12,
-    Metal = -15,
-    Building = -16,
-    SellAtPierres = -17,
-    SellAtPierresAndMarines = -18,
-    Fertilizer = -19,
-    Junk = -20,
-    Bait = -21,
-    Tackle = -22,
-    SellAtFishShop = -23,
-    Furniture = -24,
-    Artisan = -26,
-    Syrup = -27,
-    MonsterLoot = -28,
-    Seed = -74,
-    Vegitable = -75,
-    Fruit = -79,
-    Flower = -80,
-    Green = -81,
 }
 
 #[derive(Clone, Debug, PartialEq)]

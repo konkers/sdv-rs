@@ -3,7 +3,7 @@ use indexmap::IndexMap;
 use roxmltree::Node;
 use std::{
     convert::{TryFrom, TryInto},
-    fmt::Display,
+    fmt::{Debug, Display},
     hash::Hash,
     io::Read,
     str::FromStr,
@@ -17,13 +17,13 @@ mod weather;
 pub use location::Location;
 pub use weather::{LocationWeather, Weather};
 
-enum NodeFinder<'a, 'input: 'a> {
+pub(crate) enum NodeFinder<'a, 'input: 'a> {
     Node(Node<'a, 'input>),
     Err(anyhow::Error),
 }
 
 impl<'a, 'input: 'a> NodeFinder<'a, 'input> {
-    fn child(mut self, name: &str) -> Self {
+    pub(crate) fn child(mut self, name: &str) -> Self {
         if let Self::Node(node) = self {
             self = match node.children().find(|n| n.tag_name().name() == name) {
                 Some(n) => Self::Node(n),
@@ -34,14 +34,14 @@ impl<'a, 'input: 'a> NodeFinder<'a, 'input> {
         self
     }
 
-    fn node(self) -> Result<Node<'a, 'input>> {
+    pub(crate) fn node(self) -> Result<Node<'a, 'input>> {
         match self {
             Self::Node(n) => Ok(n),
             Self::Err(e) => Err(e),
         }
     }
 
-    fn convert<T: FromStr>(self) -> Result<T>
+    pub(crate) fn convert<T: FromStr>(self) -> Result<T>
     where
         T::Err: Display,
     {
@@ -76,6 +76,27 @@ impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for i32 {
     }
 }
 
+impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for i64 {
+    type Error = anyhow::Error;
+    fn try_from(finder: NodeFinder) -> Result<Self, Self::Error> {
+        finder.convert()
+    }
+}
+
+impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for f32 {
+    type Error = anyhow::Error;
+    fn try_from(finder: NodeFinder) -> Result<Self, Self::Error> {
+        finder.convert()
+    }
+}
+
+impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for String {
+    type Error = anyhow::Error;
+    fn try_from(finder: NodeFinder) -> Result<Self, Self::Error> {
+        Ok(finder.node()?.text().unwrap_or("").to_string())
+    }
+}
+
 impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for bool {
     type Error = anyhow::Error;
     fn try_from(finder: NodeFinder) -> Result<Self, Self::Error> {
@@ -83,7 +104,7 @@ impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for bool {
     }
 }
 
-trait Finder {
+pub(crate) trait Finder {
     fn child(&self, name: &str) -> NodeFinder;
 }
 
@@ -165,6 +186,28 @@ where
     Ok(vals)
 }
 
+pub fn map_from_node_parse_key<K: Eq + Hash, V, KF, VF>(
+    node: &Node,
+    parse_key: KF,
+    parse_value: VF,
+) -> Result<IndexMap<K, V>>
+where
+    KF: Fn(&Node) -> Result<K>,
+    VF: Fn(&Node) -> Result<V>,
+{
+    let mut vals = IndexMap::new();
+    for item in node.children().filter(|n| n.tag_name().name() == "item") {
+        let key = child_node(&item, "key")?;
+        let id = parse_key(&key)?;
+        let value_node = child_node(&item, "value")?;
+        let res = parse_value(&value_node);
+        let value = res?;
+        vals.insert(id, value);
+    }
+
+    Ok(vals)
+}
+
 #[derive(Debug)]
 pub struct Player {
     pub name: String,
@@ -226,16 +269,16 @@ impl SaveGame {
         let root = doc.root();
         let save = child_node(&root, "SaveGame")?;
         let player = Player::from_node(&child_node(&save, "player")?)?;
-        let locations = child_node(&save, "locations")?
+        let mut locations = IndexMap::new();
+
+        for node in child_node(&save, "locations")?
             .children()
-            .filter_map(|n| {
-                if n.tag_name().name() == "GameLocation" {
-                    Location::from_node(&n).map(|l| (l.name.clone(), l)).ok()
-                } else {
-                    None
-                }
-            })
-            .collect();
+            .filter(|n| n.tag_name().name() == "GameLocation")
+        {
+            let location = Location::from_node(&node)?;
+            locations.insert(location.name.clone(), location);
+        }
+
         let current_season = Season::from_node(&child_node(&save, "currentSeason")?)?;
         let day_of_month = child_node_i32(&save, "dayOfMonth")?;
         let year = child_node_i32(&save, "year")?;

@@ -14,4 +14,5 @@ num-traits = "0.2"
 num-derive = "0.3"
 roxmltree = "0.15.0"
 serde = { version = "1.0", features = ["derive"] }
+strum = { version = "0.24", features = ["derive"] }
 xnb = { path = "../xnb-rs" }

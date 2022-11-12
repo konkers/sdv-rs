@@ -10,3 +10,5 @@ edition = "2018"
 anyhow = "1.0"
 structopt = "0.3"
 sdv = { path = "../sdv" }
+termimad = "0.20"
+crossterm = "0.23.1"

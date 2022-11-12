@@ -16,9 +16,8 @@ mod object;
 mod weather;
 
 pub use location::Location;
+pub use object::Object;
 pub use weather::{LocationWeather, Weather};
-
-use self::object::Object;
 
 #[derive(Debug, Clone)]
 pub(crate) enum SaveError<'a, 'input: 'a> {

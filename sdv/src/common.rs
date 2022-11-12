@@ -12,8 +12,8 @@ use crate::save::{Finder, NodeFinder, SaveError, SaveResult};
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq)]
 pub struct Point<T> {
-    x: T,
-    y: T,
+    pub x: T,
+    pub y: T,
 }
 
 impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for Point<i32> {

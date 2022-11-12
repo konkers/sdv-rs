@@ -1,7 +1,14 @@
 use anyhow::{anyhow, Result};
-use sdv::{common::ObjectCategory, gamedata::GameData, SaveGame};
+use crossterm::style::Color::*;
+use sdv::{
+    common::{ObjectCategory, Point},
+    gamedata::GameData,
+    save::Object,
+    SaveGame,
+};
 use std::{collections::HashSet, fs::File, io::BufReader, iter::FromIterator, path::PathBuf};
 use structopt::StructOpt;
+use termimad::*;
 
 #[derive(Debug, StructOpt)]
 struct GameContentLoc {
@@ -33,10 +40,20 @@ enum DumpOpt {
 }
 
 #[derive(Debug, StructOpt)]
+struct ItemsOpt {
+    #[structopt(flatten)]
+    loc: GameAndSaveOpt,
+
+    #[structopt(long)]
+    all: bool,
+}
+
+#[derive(Debug, StructOpt)]
 enum Opt {
     Bundles(GameAndSaveOpt),
     Dump(DumpOpt),
     Fish(GameAndSaveOpt),
+    Items(ItemsOpt),
     Todo(GameAndSaveOpt),
 }
 
@@ -69,6 +86,99 @@ fn cmd_fish(opt: &GameAndSaveOpt) -> Result<()> {
     {
         println!("  {}", &fish.name());
     }
+    Ok(())
+}
+
+#[derive(Debug)]
+enum ItemLocation {
+    Player,
+    Map(String, Point<i32>),
+    Chest(String, Point<i32>),
+}
+impl std::fmt::Display for ItemLocation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Player => write!(f, "Player"),
+            Self::Map(name, loc) => write!(f, "{}: {}, {}", name, loc.x, loc.y),
+            Self::Chest(name, loc) => write!(f, "{} Chest: {}, {}", name, loc.x, loc.y),
+        }
+    }
+}
+
+struct Item<'a> {
+    object: &'a Object,
+    location: ItemLocation,
+}
+
+fn cmd_items(opt: &ItemsOpt) -> Result<()> {
+    let _data = GameData::load(&opt.loc.content.game_content)?;
+    let f = File::open(&opt.loc.file)?;
+    let mut r = BufReader::new(f);
+    let save = SaveGame::from_reader(&mut r)?;
+
+    let mut items = Vec::new();
+
+    for item in &save.player.items {
+        items.push(Item {
+            object: item,
+            location: ItemLocation::Player,
+        });
+    }
+
+    for (name, location) in &save.locations {
+        for (pos, object) in &location.objects {
+            if let Some(chest_items) = &object.items {
+                for item in chest_items {
+                    items.push(Item {
+                        object: item,
+                        location: ItemLocation::Chest(name.clone(), *pos),
+                    });
+                }
+            } else if opt.all {
+                items.push(Item {
+                    object: object,
+                    location: ItemLocation::Map(name.clone(), *pos),
+                });
+            }
+        }
+    }
+
+    items.sort_by(|a, b| {
+        a.object
+            .stack_price()
+            .partial_cmp(&b.object.stack_price())
+            .unwrap()
+    });
+
+    let total: i64 = items
+        .iter()
+        .map(|item| item.object.stack_price() as i64)
+        .sum();
+
+    let mut skin = MadSkin::default();
+    skin.set_headers_fg(rgb(255, 187, 0));
+    skin.bold.set_fg(Yellow);
+    skin.italic.set_fgbg(Magenta, rgb(30, 30, 40));
+    skin.paragraph.align = Alignment::Center;
+    skin.table.align = Alignment::Center;
+
+    let mut text = "|:-:|:-:|:-:|:-:|\n".to_string();
+    text.push_str("|**Name**|**Qty**|**Price**|**Location**|\n");
+    text.push_str("|:-|:-|:-|-\n");
+
+    for item in items {
+        text.push_str(&format!(
+            "|{} | {} | {} |{} |\n",
+            item.object.name,
+            item.object.stack,
+            item.object.price.unwrap_or(-1) * item.object.stack,
+            item.location,
+        ));
+    }
+    text.push_str("|:-|:-|:-|-\n");
+    text.push_str(&format!("|**Total**||{}||\n", total));
+    text.push_str("|-\n");
+    println!("{}", skin.term_text(&text));
     Ok(())
 }
 
@@ -189,6 +299,7 @@ fn main() -> Result<()> {
         Opt::Dump(o) => cmd_dump(&o)?,
         Opt::Bundles(o) => cmd_bundles(&o)?,
         Opt::Fish(o) => cmd_fish(&o)?,
+        Opt::Items(o) => cmd_items(&o)?,
         Opt::Todo(o) => cmd_todo(&o)?,
     }
 

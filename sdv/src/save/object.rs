@@ -150,4 +150,8 @@ impl Object {
             })
             .collect()
     }
+
+    pub fn stack_price(&self) -> i32 {
+        self.price.unwrap_or(0) * self.stack
+    }
 }

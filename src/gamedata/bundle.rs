@@ -10,7 +10,7 @@ use nom::{
 use std::{convert::TryInto, fs::File, io::BufReader, path::Path};
 use xnb::Xnb;
 
-use crate::{decimal, field, field_value, sub_field_value};
+use super::{decimal, field, field_value, sub_field_value};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum RewardType {

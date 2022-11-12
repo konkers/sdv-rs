@@ -9,7 +9,7 @@ use super::{
     array_of_bool, child_node, child_node_text, map_from_node, map_from_node_parse_key, Finder,
     NodeFinder,
 };
-use crate::{ObjectCategory, Point, Rect};
+use crate::common::{ObjectCategory, Point, Rect};
 
 #[derive(Debug, EnumString, Eq, PartialEq)]
 #[strum(ascii_case_insensitive)]

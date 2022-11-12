@@ -4,7 +4,8 @@ use nom::{branch::alt, bytes::complete::tag, combinator::value, multi::many1, IR
 use std::{convert::TryInto, fs::File, io::BufReader, path::Path};
 use xnb::Xnb;
 
-use crate::{decimal, field, field_value, float, sub_field_value, Season, Weather};
+use super::{decimal, field, field_value, float, sub_field_value};
+use crate::common::{Season, Weather};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum FishBehavior {

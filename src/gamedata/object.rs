@@ -10,7 +10,8 @@ use num_traits::FromPrimitive;
 use std::{convert::TryInto, fs::File, io::BufReader, path::Path};
 use xnb::Xnb;
 
-use crate::{decimal, field, field_value, remaining_fields, sub_field_value, ObjectCategory};
+use super::{decimal, field, field_value, remaining_fields, sub_field_value};
+use crate::common::ObjectCategory;
 
 #[derive(Clone, Eq, Debug, Hash, PartialEq)]
 pub enum ObjectType {

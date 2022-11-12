@@ -9,7 +9,7 @@ use std::{
     str::FromStr,
 };
 
-use super::Season;
+use crate::common::Season;
 
 mod location;
 mod weather;

@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use indexmap::IndexMap;
-use roxmltree::Node;
+use roxmltree::{Node, TextPos};
 use std::{
     convert::{TryFrom, TryInto},
     fmt::{Debug, Display},
@@ -18,121 +18,169 @@ mod weather;
 pub use location::Location;
 pub use weather::{LocationWeather, Weather};
 
+use self::object::Object;
+
+#[derive(Debug, Clone)]
+pub(crate) enum SaveError<'a, 'input: 'a> {
+    ChildNotFound {
+        name: String,
+        node: Node<'a, 'input>,
+    },
+    Generic {
+        message: String,
+        node: Node<'a, 'input>,
+    },
+}
+impl<'a, 'input: 'a> SaveError<'a, 'input> {
+    fn node_loc(node: Node<'a, 'input>) -> TextPos {
+        let doc = node.document();
+        doc.text_pos_at(node.range().start)
+    }
+}
+
+impl<'a, 'input: 'a> std::fmt::Display for SaveError<'a, 'input> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::ChildNotFound { name, node } => write!(
+                f,
+                "child element '{}' not found at {}",
+                name,
+                Self::node_loc(*node)
+            ),
+            Self::Generic { message, node } => {
+                write!(f, "{} at {}", message, Self::node_loc(*node))
+            }
+        }
+    }
+}
+
+pub(crate) type SaveResult<'a, 'input, T> = std::result::Result<T, SaveError<'a, 'input>>;
+
 pub(crate) enum NodeFinder<'a, 'input: 'a> {
     Node(Node<'a, 'input>),
-    Err(anyhow::Error),
+    Err(SaveError<'a, 'input>),
 }
 
 impl<'a, 'input: 'a> NodeFinder<'a, 'input> {
-    pub(crate) fn child(mut self, name: &str) -> Self {
+    pub(crate) fn child(self, name: &str) -> Self {
         if let Self::Node(node) = self {
-            self = match node.children().find(|n| n.tag_name().name() == name) {
+            let nodes = node.children().find(|n| n.tag_name().name() == name);
+            return match nodes {
                 Some(n) => Self::Node(n),
-                None => Self::Err(anyhow!("can't find {} element", name)),
+                None => Self::Err(SaveError::ChildNotFound {
+                    name: name.to_string(),
+                    node: node,
+                }),
             };
         }
 
         self
     }
 
-    pub(crate) fn node(self) -> Result<Node<'a, 'input>> {
+    pub(crate) fn node(self) -> SaveResult<'a, 'input, Node<'a, 'input>> {
         match self {
             Self::Node(n) => Ok(n),
-            Self::Err(e) => Err(e),
+            Self::Err(e) => Err(e.clone()),
         }
     }
-
-    pub(crate) fn convert<T: FromStr>(self) -> Result<T>
+    pub(crate) fn convert<T: FromStr>(self) -> SaveResult<'a, 'input, T>
     where
         T::Err: Display,
     {
         match self {
             Self::Node(node) => {
                 let text = node.text().unwrap_or("");
-                text.parse().map_err(|e| {
-                    anyhow!(
+                text.parse().map_err(|e| SaveError::Generic {
+                    message: format!(
                         "error parsing {} {}: {}",
                         std::any::type_name::<T>(),
                         text,
                         e
-                    )
+                    ),
+                    node: node,
                 })
             }
-            Self::Err(e) => Err(e),
+            Self::Err(e) => Err(e.clone()),
         }
     }
 }
 
 impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for Node<'a, 'input> {
-    type Error = anyhow::Error;
+    type Error = SaveError<'a, 'input>;
     fn try_from(finder: NodeFinder<'a, 'input>) -> Result<Self, Self::Error> {
         finder.node()
     }
 }
 
 impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for i32 {
-    type Error = anyhow::Error;
-    fn try_from(finder: NodeFinder) -> Result<Self, Self::Error> {
+    type Error = SaveError<'a, 'input>;
+    fn try_from(finder: NodeFinder<'a, 'input>) -> Result<Self, Self::Error> {
         finder.convert()
     }
 }
 
 impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for i64 {
-    type Error = anyhow::Error;
-    fn try_from(finder: NodeFinder) -> Result<Self, Self::Error> {
+    type Error = SaveError<'a, 'input>;
+    fn try_from(finder: NodeFinder<'a, 'input>) -> Result<Self, Self::Error> {
         finder.convert()
     }
 }
 
 impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for f32 {
-    type Error = anyhow::Error;
-    fn try_from(finder: NodeFinder) -> Result<Self, Self::Error> {
+    type Error = SaveError<'a, 'input>;
+    fn try_from(finder: NodeFinder<'a, 'input>) -> Result<Self, Self::Error> {
         finder.convert()
     }
 }
 
 impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for String {
-    type Error = anyhow::Error;
-    fn try_from(finder: NodeFinder) -> Result<Self, Self::Error> {
+    type Error = SaveError<'a, 'input>;
+    fn try_from(finder: NodeFinder<'a, 'input>) -> Result<Self, Self::Error> {
         Ok(finder.node()?.text().unwrap_or("").to_string())
     }
 }
 
 impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for bool {
-    type Error = anyhow::Error;
-    fn try_from(finder: NodeFinder) -> Result<Self, Self::Error> {
+    type Error = SaveError<'a, 'input>;
+    fn try_from(finder: NodeFinder<'a, 'input>) -> Result<Self, Self::Error> {
         finder.convert()
     }
 }
 
-pub(crate) trait Finder {
-    fn child<'a, 'input>(&'input self, name: &str) -> NodeFinder<'a, 'input>;
+pub(crate) trait Finder<'a, 'input: 'a> {
+    fn child(self, name: &str) -> NodeFinder<'a, 'input>;
+    fn finder(self) -> NodeFinder<'a, 'input>;
 }
 
-impl<'b, 'binput> Finder for Node<'b, 'binput> {
-    fn child<'a, 'input>(&'input self, name: &str) -> NodeFinder<'a, 'input> {
-        let finder = NodeFinder::Node(self.clone());
+impl<'a, 'input: 'a> Finder<'a, 'input> for Node<'a, 'input> {
+    fn child(self, name: &str) -> NodeFinder<'a, 'input> {
+        let finder = NodeFinder::Node(self);
         finder.child(name)
+    }
+
+    fn finder(self) -> NodeFinder<'a, 'input> {
+        NodeFinder::Node(self)
     }
 }
 
-pub fn array_of<T: FromStr>(
-    node: &Node,
+pub(crate) fn array_of<'a, 'input, T: FromStr>(
+    node: Node<'a, 'input>,
     array_node_name: &str,
     value_node_name: &str,
-) -> Result<Vec<T>>
+) -> SaveResult<'a, 'input, Vec<T>>
 where
     T::Err: Display,
 {
     let array_node = node.child(array_node_name).node()?;
-    let vals: Result<Vec<T>> = array_node
+    let vals: SaveResult<'a, 'input, Vec<T>> = array_node
         .children()
         .filter(|n| n.tag_name().name() == value_node_name)
-        .map(|n| -> Result<T> {
+        .map(|n| -> SaveResult<'a, 'input, T> {
             let text = n.text().unwrap_or("");
-            let val: T = text
-                .parse()
-                .map_err(|e| anyhow!("error parsing array value {}: {}", text, e))?;
+            let val: T = text.parse().map_err(|e| SaveError::Generic {
+                message: format!("error parsing array value {}: {}", text, e),
+                node: n,
+            })?;
 
             Ok(val)
         })
@@ -141,39 +189,44 @@ where
     Ok(vals?)
 }
 
-pub fn array_of_i32(node: &Node) -> Result<Vec<i32>> {
+pub(crate) fn array_of_i32<'a, 'input>(node: Node<'a, 'input>) -> SaveResult<'a, 'input, Vec<i32>> {
     array_of(node, "ArrayOfInt", "int")
 }
 
-pub fn array_of_bool(node: &Node) -> Result<Vec<bool>> {
+pub(crate) fn array_of_bool<'a, 'input>(
+    node: Node<'a, 'input>,
+) -> SaveResult<'a, 'input, Vec<bool>> {
     array_of(node, "ArrayOfBoolean", "boolean")
 }
 
-pub(crate) fn map_from_node<'a, 'input, K: Eq + Hash + TryFrom<NodeFinder<'a, 'input>>, V, F>(
-    node: &'input Node,
+pub(crate) fn map_from_node<'a, 'input: 'a, K: Eq + Hash + TryFrom<NodeFinder<'a, 'input>>, V, F>(
+    node: Node<'a, 'input>,
     key_name: &str,
     parse_value: F,
-) -> Result<IndexMap<K, V>>
+) -> SaveResult<'a, 'input, IndexMap<K, V>>
 where
-    F: Fn(&Node) -> Result<V>,
+    F: Fn(Node<'a, 'input>) -> SaveResult<'a, 'input, V>,
     <K as TryFrom<NodeFinder<'a, 'input>>>::Error: Display,
     <K as TryFrom<NodeFinder<'a, 'input>>>::Error: Debug,
-    'input: 'a,
 {
-    let vals: Result<IndexMap<K, V>> = node
+    let vals: SaveResult<'a, 'input, IndexMap<K, V>> = node
         .children()
         .by_ref()
         .filter(|n| n.tag_name().name() == "item")
-        .map(|n| -> Result<(K, V)> {
-            let finder = NodeFinder::Node(n);
-            let id = finder
+        .map(|n| -> SaveResult<'a, 'input, (K, V)> {
+            let id = n
                 .child("key")
                 .child(key_name)
                 .try_into()
-                .map_err(|e| anyhow!("can't parse key: {}", e))?;
+                .map_err(|e| SaveError::Generic {
+                    message: format!("{}", e),
+                    node: n,
+                })?;
             let value_node = n.child("value").try_into()?;
-            let res = parse_value(&value_node);
-            let value = res?;
+            let value = parse_value(value_node).map_err(|e| SaveError::Generic {
+                message: format!("{}", e),
+                node: n,
+            })?;
             Ok((id, value))
         })
         .collect();
@@ -185,21 +238,25 @@ where
 pub struct Player {
     pub name: String,
     pub fish_caught: IndexMap<i32, FishCaught>,
+    pub items: Vec<Object>,
 }
 
 impl Player {
-    fn from_node(node: &Node) -> Result<Self> {
+    fn from_node<'a, 'input: 'a>(node: Node<'a, 'input>) -> SaveResult<'a, 'input, Self> {
         let name = node.child("name").try_into()?;
 
         let fish_caught_node = node.child("fishCaught").try_into()?;
-        let fish_caught_i32 = map_from_node(&fish_caught_node, "int", array_of_i32)?;
+        let fish_caught_i32 = map_from_node(fish_caught_node, "int", array_of_i32)?;
         let mut fish_caught = IndexMap::new();
         for (id, values) in fish_caught_i32 {
             if values.len() != 2 {
-                return Err(anyhow!(
-                    "expected fish caught to have 2 values instead of {}",
-                    values.len()
-                ));
+                return Err(SaveError::Generic {
+                    message: format!(
+                        "expected fish caught to have 2 values instead of {}",
+                        values.len()
+                    ),
+                    node: fish_caught_node,
+                });
             }
             fish_caught.insert(
                 id,
@@ -210,7 +267,16 @@ impl Player {
             );
         }
 
-        Ok(Player { name, fish_caught })
+        let items = match node.child("items").node().ok() {
+            Some(node) => Object::array_from_node(node)?,
+            None => Vec::new(),
+        };
+
+        Ok(Player {
+            name,
+            fish_caught,
+            items,
+        })
     }
 }
 
@@ -240,8 +306,12 @@ impl SaveGame {
         let contents = std::io::read_to_string(r)?;
         let doc = roxmltree::Document::parse(&contents)?;
         let root = doc.root();
-        let save: Node = root.child("SaveGame").try_into()?;
-        let player = Player::from_node(&save.child("player").try_into()?)?;
+        Self::from_node(root).map_err(|e| anyhow!("{}", e))
+    }
+
+    fn from_node<'a, 'input: 'a>(node: Node<'a, 'input>) -> SaveResult<'a, 'input, Self> {
+        let save: Node = node.child("SaveGame").try_into()?;
+        let player = Player::from_node(save.child("player").try_into()?)?;
         let mut locations = IndexMap::new();
 
         for node in save
@@ -250,18 +320,18 @@ impl SaveGame {
             .children()
             .filter(|n| n.tag_name().name() == "GameLocation")
         {
-            let location = Location::from_node(&node)?;
+            let location = Location::from_node(node)?;
             locations.insert(location.name.clone(), location);
         }
 
-        let current_season = Season::from_node(&save.child("currentSeason").try_into()?)?;
+        let current_season = Season::from_node(save.child("currentSeason").try_into()?)?;
         let day_of_month = save.child("dayOfMonth").try_into()?;
         let year = save.child("year").try_into()?;
 
         let weather = map_from_node(
-            &save.child("locationWeather").try_into()?,
+            save.child("locationWeather").try_into()?,
             "LocationContext",
-            |node| LocationWeather::from_node(&node.child("LocationWeather").try_into()?),
+            |node| LocationWeather::from_node(node.child("LocationWeather").try_into()?),
         )?;
 
         Ok(SaveGame {

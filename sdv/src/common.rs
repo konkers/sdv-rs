@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use nom::{branch::alt, bytes::complete::tag, combinator::value, IResult};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
@@ -8,7 +8,7 @@ use std::convert::TryFrom;
 use std::convert::TryInto;
 use strum::EnumString;
 
-use crate::save::{Finder, NodeFinder};
+use crate::save::{Finder, NodeFinder, SaveError, SaveResult};
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq)]
 pub struct Point<T> {
@@ -17,9 +17,9 @@ pub struct Point<T> {
 }
 
 impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for Point<i32> {
-    type Error = anyhow::Error;
+    type Error = SaveError<'a, 'input>;
     fn try_from(finder: NodeFinder<'a, 'input>) -> Result<Self, Self::Error> {
-        let node = finder.node()?;
+        let node = &finder.node()?;
         let x = node.child("X").try_into()?;
         let y = node.child("Y").try_into()?;
         Ok(Point { x, y })
@@ -27,7 +27,7 @@ impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for Point<i32> {
 }
 
 impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for Point<f32> {
-    type Error = anyhow::Error;
+    type Error = SaveError<'a, 'input>;
     fn try_from(finder: NodeFinder<'a, 'input>) -> Result<Self, Self::Error> {
         let node = finder.node()?;
         let x = node.child("X").try_into()?;
@@ -43,7 +43,7 @@ pub struct Rect<T> {
 }
 
 impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for Rect<i32> {
-    type Error = anyhow::Error;
+    type Error = SaveError<'a, 'input>;
     fn try_from(finder: NodeFinder<'a, 'input>) -> Result<Self, Self::Error> {
         let node = finder.node()?;
         let x = node.child("X").try_into()?;
@@ -78,10 +78,14 @@ impl Season {
         ))(i)
     }
 
-    pub(crate) fn from_node(node: &Node) -> Result<Self> {
-        let text = node.text().unwrap_or("");
-        let (_, season) =
-            Self::parse(text).map_err(|e| anyhow!("error parsing season {}: {}", text, e))?;
+    pub(crate) fn from_node<'a, 'input: 'a>(
+        node: Node<'a, 'input>,
+    ) -> SaveResult<'a, 'input, Self> {
+        let text = &node.text().unwrap_or("");
+        let (_, season) = Self::parse(text).map_err(|e| SaveError::Generic {
+            message: format!("error parsing season {}: {}", text, e),
+            node: node.clone(),
+        })?;
 
         Ok(season)
     }
@@ -142,9 +146,13 @@ pub enum ObjectCategory {
 }
 
 impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for ObjectCategory {
-    type Error = anyhow::Error;
+    type Error = SaveError<'a, 'input>;
     fn try_from(finder: NodeFinder<'a, 'input>) -> Result<Self, Self::Error> {
-        let id: i32 = finder.try_into()?;
-        Self::from_i32(id).ok_or(anyhow!("unknown ObjectCategory {}", id))
+        let node = finder.node()?;
+        let id: i32 = node.finder().try_into()?;
+        Self::from_i32(id).ok_or(SaveError::Generic {
+            message: format!("unknown ObjectCategory {}", id),
+            node,
+        })
     }
 }

@@ -1,10 +1,10 @@
 use std::convert::{TryFrom, TryInto};
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use roxmltree::Node;
 use strum::EnumString;
 
-use super::{Finder, NodeFinder};
+use super::{Finder, NodeFinder, SaveError, SaveResult};
 use crate::common::{ObjectCategory, Point, Rect};
 
 #[derive(Debug, EnumString, Eq, PartialEq)]
@@ -25,7 +25,7 @@ pub enum ObjectType {
 }
 
 impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for ObjectType {
-    type Error = anyhow::Error;
+    type Error = SaveError<'a, 'input>;
     fn try_from(finder: NodeFinder<'a, 'input>) -> Result<Self, Self::Error> {
         finder.convert()
     }
@@ -80,22 +80,9 @@ pub struct Object {
 }
 
 impl Object {
-    pub(crate) fn from_node(node: &Node) -> Result<Object> {
+    pub(crate) fn from_node<'a, 'input>(node: Node<'a, 'input>) -> SaveResult<'a, 'input, Object> {
         let items = match node.child("items").node().ok() {
-            Some(node) => {
-                let mut items = Vec::new();
-                for item in node.children().filter(|n| n.tag_name().name() == "Item") {
-                    let object = Object::from_node(&item).map_err(|e| {
-                        let nodes: Vec<_> = item
-                            .children()
-                            .map(|n| (n.tag_name().name(), n.text()))
-                            .collect();
-                        anyhow!("error parsing object: {:#?}: {}", nodes, e)
-                    })?;
-                    items.push(object);
-                }
-                Some(items)
-            }
+            Some(node) => Some(Self::array_from_node(node)?),
             None => None,
         };
 
@@ -145,5 +132,22 @@ impl Object {
             coins: node.child("coins").try_into().ok(),
             items,
         })
+    }
+
+    pub(crate) fn array_from_node<'a, 'input: 'a>(
+        node: Node<'a, 'input>,
+    ) -> SaveResult<'a, 'input, Vec<Object>> {
+        node.children()
+            .filter(|n| {
+                n.tag_name().name() == "Item"
+                    && !n.has_attribute(("http://www.w3.org/2001/XMLSchema-instance", "nil"))
+            })
+            .map(|n| {
+                Object::from_node(n).map_err(|e| SaveError::Generic {
+                    message: format!("error parsing object: {}", e),
+                    node: n,
+                })
+            })
+            .collect()
     }
 }

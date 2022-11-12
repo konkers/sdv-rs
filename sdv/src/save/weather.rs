@@ -1,10 +1,9 @@
-use anyhow::{anyhow, Result};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use roxmltree::Node;
 use std::convert::TryInto;
 
-use super::Finder;
+use super::{Finder, SaveError, SaveResult};
 
 #[derive(Clone, Eq, Debug, FromPrimitive, Hash, PartialEq)]
 pub enum Weather {
@@ -27,10 +26,15 @@ pub struct LocationWeather {
 }
 
 impl LocationWeather {
-    pub(crate) fn from_node(node: &Node) -> Result<Self> {
+    pub(crate) fn from_node<'a, 'input: 'a>(
+        node: Node<'a, 'input>,
+    ) -> SaveResult<'a, 'input, Self> {
         let weather_for_tomorrow_raw = node.child("weatherForTomorrow").child("int").try_into()?;
-        let weather_for_tomorrow = Weather::from_i32(weather_for_tomorrow_raw)
-            .ok_or(anyhow!("Unknown weather {}", weather_for_tomorrow_raw))?;
+        let weather_for_tomorrow =
+            Weather::from_i32(weather_for_tomorrow_raw).ok_or(SaveError::Generic {
+                message: format!("Unknown weather {}", weather_for_tomorrow_raw),
+                node: node,
+            })?;
         let is_raining = node.child("isRaining").child("boolean").try_into()?;
         let is_snowing = node.child("isSnowing").child("boolean").try_into()?;
         let is_lightning = node.child("isLightning").child("boolean").try_into()?;

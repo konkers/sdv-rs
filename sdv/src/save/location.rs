@@ -4,7 +4,7 @@ use anyhow::Result;
 use indexmap::IndexMap;
 use roxmltree::Node;
 
-use super::{array_of_bool, child_node, child_node_text, map_from_node, object::Object, Finder};
+use super::{array_of_bool, map_from_node, object::Object, Finder};
 
 use crate::common::Point;
 
@@ -17,8 +17,8 @@ pub struct Location {
 
 impl Location {
     pub(crate) fn from_node(node: &Node) -> Result<Location> {
-        let name = child_node_text(node, "name")?;
-        let bundles = match child_node(node, "bundles").ok() {
+        let name = node.child("name").try_into()?;
+        let bundles = match node.child("bundles").try_into().ok() {
             Some(n) => Some(map_from_node(&n, "int", array_of_bool)?),
             None => None,
         };

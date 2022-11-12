@@ -116,21 +116,6 @@ impl<'b, 'binput> Finder for Node<'b, 'binput> {
     }
 }
 
-pub fn child_node<'a>(node: &'a Node, name: &str) -> Result<Node<'a, 'a>> {
-    let node = node.child(name).node()?;
-    Ok(node)
-}
-
-pub fn child_node_text(node: &Node, name: &str) -> Result<String> {
-    Ok(child_node(node, name)?.text().unwrap_or("").to_string())
-}
-
-pub fn child_node_i32(node: &Node, name: &str) -> Result<i32> {
-    let text = child_node(node, name)?.text().unwrap_or("");
-    text.parse()
-        .map_err(|e| anyhow!("error parsing i32 {}: {}", text, e))
-}
-
 pub fn array_of<T: FromStr>(
     node: &Node,
     array_node_name: &str,
@@ -139,20 +124,21 @@ pub fn array_of<T: FromStr>(
 where
     T::Err: Display,
 {
-    let mut vals = Vec::new();
-    let array_node = child_node(&node, array_node_name)?;
-    for elem in array_node
+    let array_node = node.child(array_node_name).node()?;
+    let vals: Result<Vec<T>> = array_node
         .children()
         .filter(|n| n.tag_name().name() == value_node_name)
-    {
-        let text = elem.text().unwrap_or("");
-        let val = text
-            .parse()
-            .map_err(|e| anyhow!("error parsing array value {}: {}", text, e))?;
-        vals.push(val);
-    }
+        .map(|n| -> Result<T> {
+            let text = n.text().unwrap_or("");
+            let val: T = text
+                .parse()
+                .map_err(|e| anyhow!("error parsing array value {}: {}", text, e))?;
 
-    Ok(vals)
+            Ok(val)
+        })
+        .collect();
+
+    Ok(vals?)
 }
 
 pub fn array_of_i32(node: &Node) -> Result<Vec<i32>> {
@@ -185,7 +171,7 @@ where
                 .child(key_name)
                 .try_into()
                 .map_err(|e| anyhow!("can't parse key: {}", e))?;
-            let value_node = child_node(&n, "value")?;
+            let value_node = n.child("value").try_into()?;
             let res = parse_value(&value_node);
             let value = res?;
             Ok((id, value))
@@ -203,9 +189,9 @@ pub struct Player {
 
 impl Player {
     fn from_node(node: &Node) -> Result<Self> {
-        let name = child_node_text(node, "name")?;
+        let name = node.child("name").try_into()?;
 
-        let fish_caught_node = child_node(node, "fishCaught")?;
+        let fish_caught_node = node.child("fishCaught").try_into()?;
         let fish_caught_i32 = map_from_node(&fish_caught_node, "int", array_of_i32)?;
         let mut fish_caught = IndexMap::new();
         for (id, values) in fish_caught_i32 {
@@ -254,11 +240,13 @@ impl SaveGame {
         let contents = std::io::read_to_string(r)?;
         let doc = roxmltree::Document::parse(&contents)?;
         let root = doc.root();
-        let save = child_node(&root, "SaveGame")?;
-        let player = Player::from_node(&child_node(&save, "player")?)?;
+        let save: Node = root.child("SaveGame").try_into()?;
+        let player = Player::from_node(&save.child("player").try_into()?)?;
         let mut locations = IndexMap::new();
 
-        for node in child_node(&save, "locations")?
+        for node in save
+            .child("locations")
+            .node()?
             .children()
             .filter(|n| n.tag_name().name() == "GameLocation")
         {
@@ -266,9 +254,9 @@ impl SaveGame {
             locations.insert(location.name.clone(), location);
         }
 
-        let current_season = Season::from_node(&child_node(&save, "currentSeason")?)?;
-        let day_of_month = child_node_i32(&save, "dayOfMonth")?;
-        let year = child_node_i32(&save, "year")?;
+        let current_season = Season::from_node(&save.child("currentSeason").try_into()?)?;
+        let day_of_month = save.child("dayOfMonth").try_into()?;
+        let year = save.child("year").try_into()?;
 
         let weather = map_from_node(
             &save.child("locationWeather").try_into()?,

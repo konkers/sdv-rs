@@ -1,18 +1,6 @@
-[package]
-name = "sdv"
-version = "0.1.0"
-authors = ["Erik Gilling <konkers@konkers.net>"]
-edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-anyhow = "1.0"
-indexmap = "1.6.1"
-nom = "6.0.1"
-num-traits = "0.2"
-num-derive = "0.3"
-roxmltree = "0.15.0"
-serde = { version = "1.0", features = ["derive"] }
-strum = { version = "0.24", features = ["derive"] }
-xnb = { path = "../xnb-rs" }
+[workspace]
+members = [
+  "external/xnb-rs",
+  "sdv",
+  "sdv-util",
+]

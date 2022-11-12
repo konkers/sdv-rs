@@ -12,6 +12,7 @@ use std::{
 use crate::common::Season;
 
 mod location;
+mod object;
 mod weather;
 
 pub use location::Location;
@@ -105,11 +106,11 @@ impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for bool {
 }
 
 pub(crate) trait Finder {
-    fn child(&self, name: &str) -> NodeFinder;
+    fn child<'a, 'input>(&'input self, name: &str) -> NodeFinder<'a, 'input>;
 }
 
-impl<'a, 'input> Finder for Node<'a, 'input> {
-    fn child(&self, name: &str) -> NodeFinder {
+impl<'b, 'binput> Finder for Node<'b, 'binput> {
+    fn child<'a, 'input>(&'input self, name: &str) -> NodeFinder<'a, 'input> {
         let finder = NodeFinder::Node(self.clone());
         finder.child(name)
     }
@@ -162,50 +163,36 @@ pub fn array_of_bool(node: &Node) -> Result<Vec<bool>> {
     array_of(node, "ArrayOfBoolean", "boolean")
 }
 
-pub fn map_from_node<K: Eq + Hash + FromStr, V, F>(
-    node: &Node,
+pub(crate) fn map_from_node<'a, 'input, K: Eq + Hash + TryFrom<NodeFinder<'a, 'input>>, V, F>(
+    node: &'input Node,
     key_name: &str,
     parse_value: F,
 ) -> Result<IndexMap<K, V>>
 where
     F: Fn(&Node) -> Result<V>,
-    K::Err: Display,
+    <K as TryFrom<NodeFinder<'a, 'input>>>::Error: Display,
+    <K as TryFrom<NodeFinder<'a, 'input>>>::Error: Debug,
+    'input: 'a,
 {
-    let mut vals = IndexMap::new();
-    for item in node.children().filter(|n| n.tag_name().name() == "item") {
-        let key = child_node(&item, "key")?;
-        let id_text = child_node(&key, key_name)?.text().unwrap_or("");
-        let id = id_text
-            .parse()
-            .map_err(|e| anyhow!("error parsing key {}: {}", id_text, e))?;
-        let value_node = child_node(&item, "value")?;
-        let value = parse_value(&value_node)?;
-        vals.insert(id, value);
-    }
+    let vals: Result<IndexMap<K, V>> = node
+        .children()
+        .by_ref()
+        .filter(|n| n.tag_name().name() == "item")
+        .map(|n| -> Result<(K, V)> {
+            let finder = NodeFinder::Node(n);
+            let id = finder
+                .child("key")
+                .child(key_name)
+                .try_into()
+                .map_err(|e| anyhow!("can't parse key: {}", e))?;
+            let value_node = child_node(&n, "value")?;
+            let res = parse_value(&value_node);
+            let value = res?;
+            Ok((id, value))
+        })
+        .collect();
 
-    Ok(vals)
-}
-
-pub fn map_from_node_parse_key<K: Eq + Hash, V, KF, VF>(
-    node: &Node,
-    parse_key: KF,
-    parse_value: VF,
-) -> Result<IndexMap<K, V>>
-where
-    KF: Fn(&Node) -> Result<K>,
-    VF: Fn(&Node) -> Result<V>,
-{
-    let mut vals = IndexMap::new();
-    for item in node.children().filter(|n| n.tag_name().name() == "item") {
-        let key = child_node(&item, "key")?;
-        let id = parse_key(&key)?;
-        let value_node = child_node(&item, "value")?;
-        let res = parse_value(&value_node);
-        let value = res?;
-        vals.insert(id, value);
-    }
-
-    Ok(vals)
+    Ok(vals?)
 }
 
 #[derive(Debug)]

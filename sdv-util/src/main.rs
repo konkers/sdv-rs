@@ -145,14 +145,14 @@ fn cmd_items(opt: &ItemsOpt) -> Result<()> {
 
     items.sort_by(|a, b| {
         a.object
-            .stack_price()
-            .partial_cmp(&b.object.stack_price())
+            .stack_price(&save.player.professions)
+            .partial_cmp(&b.object.stack_price(&save.player.professions))
             .unwrap()
     });
 
     let total: i64 = items
         .iter()
-        .map(|item| item.object.stack_price() as i64)
+        .map(|item| item.object.stack_price(&save.player.professions) as i64)
         .sum();
 
     let mut skin = MadSkin::default();
@@ -162,20 +162,33 @@ fn cmd_items(opt: &ItemsOpt) -> Result<()> {
     skin.paragraph.align = Alignment::Center;
     skin.table.align = Alignment::Center;
 
-    let mut text = "|:-:|:-:|:-:|:-:|\n".to_string();
+    let mut text = "|:-:|:-:|:-:|\n".to_string();
     text.push_str("|**Name**|**Qty**|**Price**|**Location**|\n");
-    text.push_str("|:-|:-|:-|-\n");
+    text.push_str("|:-|:-:|:-:|-\n");
 
     for item in items {
-        text.push_str(&format!(
-            "|{} | {} | {} |{} |\n",
-            item.object.name,
-            item.object.stack,
-            item.object.price.unwrap_or(-1) * item.object.stack,
-            item.location,
-        ));
+        let quality = item.object.quality.unwrap_or(0);
+        let quality_txt = match quality {
+            1 => " (s)",
+            2 => " (**g**)",
+            4 => " (*i*)",
+            _ => "",
+        };
+
+        let stack_price = item.object.stack_price(&save.player.professions);
+        if item.object.price_multiplier(&save.player.professions) > 1.0 {
+            text.push_str(&format!(
+                "|**{}**{} |{} | **{}** |{} |\n",
+                item.object.name, quality_txt, item.object.stack, stack_price, item.location,
+            ));
+        } else {
+            text.push_str(&format!(
+                "|{}{} |{} | {} |{} |\n",
+                item.object.name, quality_txt, item.object.stack, stack_price, item.location,
+            ));
+        }
     }
-    text.push_str("|:-|:-|:-|-\n");
+    text.push_str("|:-|:-:|:-:|-\n");
     text.push_str(&format!("|**Total**||{}||\n", total));
     text.push_str("|-\n");
     println!("{}", skin.term_text(&text));

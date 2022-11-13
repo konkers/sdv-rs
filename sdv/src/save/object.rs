@@ -1,10 +1,11 @@
 use std::convert::{TryFrom, TryInto};
 
 use anyhow::Result;
+use indexmap::IndexSet;
 use roxmltree::Node;
 use strum::EnumString;
 
-use super::{Finder, NodeFinder, SaveError, SaveResult};
+use super::{Finder, NodeFinder, Profession, SaveError, SaveResult};
 use crate::common::{ObjectCategory, Point, Rect};
 
 #[derive(Debug, EnumString, Eq, PartialEq)]
@@ -151,7 +152,105 @@ impl Object {
             .collect()
     }
 
-    pub fn stack_price(&self) -> i32 {
-        self.price.unwrap_or(0) * self.stack
+    pub fn price_multiplier(&self, professions: &IndexSet<Profession>) -> f32 {
+        // Some goods for the Rancher profession are not chosen by category so
+        // we fix them up here.
+        let animal_good = self.name.to_lowercase().contains("mayonnaise")
+            || self.name.to_lowercase().contains("cheese")
+            || self.name.to_lowercase().contains("cloth")
+            || self.name.to_lowercase().contains("wool");
+
+        let category = if animal_good {
+            &ObjectCategory::SellAtPierresAndMarines
+        } else {
+            &self.category
+        };
+
+        // The Blacksmith profession only applies to specific items
+        let parent_sheet_index = self.parent_sheet_index.unwrap_or(-1);
+        if professions.contains(&Profession::Blacksmith)
+            && ((parent_sheet_index >= 334 && parent_sheet_index <= 337)
+                || parent_sheet_index == 910)
+        {
+            return 1.5;
+        }
+
+        match category {
+            // Rancher
+            ObjectCategory::Egg
+            | ObjectCategory::Milk
+            | ObjectCategory::SellAtPierresAndMarines => {
+                if professions.contains(&Profession::Rancher) {
+                    1.2
+                } else {
+                    1.0
+                }
+            }
+
+            // Tiller
+            ObjectCategory::Vegitable | ObjectCategory::Flower | ObjectCategory::Fruit => {
+                if self.is_spawned_object.unwrap_or(false) {
+                    // spawned objects doe not get the Tiller bonus.
+                    1.0
+                } else if professions.contains(&Profession::Tiller) {
+                    1.1
+                } else {
+                    1.0
+                }
+            }
+
+            // Artisan
+            ObjectCategory::Artisan => {
+                if professions.contains(&Profession::Artisan) {
+                    1.4
+                } else {
+                    1.0
+                }
+            }
+
+            // Fisher and Angler
+            ObjectCategory::Fish => {
+                if professions.contains(&Profession::Angler) {
+                    1.5
+                } else if professions.contains(&Profession::Fisher) {
+                    1.25
+                } else {
+                    1.0
+                }
+            }
+
+            // Tapper
+            ObjectCategory::Syrup => {
+                if professions.contains(&Profession::Tapper) {
+                    1.25
+                } else {
+                    1.0
+                }
+            }
+
+            // Gemologist
+            ObjectCategory::Gem | ObjectCategory::Mineral => {
+                if professions.contains(&Profession::Gemologist) {
+                    1.3
+                } else {
+                    1.0
+                }
+            }
+
+            _ => 1.0,
+        }
+    }
+
+    pub fn stack_price(&self, professions: &IndexSet<Profession>) -> i32 {
+        let mult = self.price_multiplier(professions) as f64;
+        let mult = mult
+            * match self.quality.unwrap_or(0) {
+                1 => 1.25,
+                2 => 1.5,
+                4 => 2.0,
+                _ => 1.0,
+            };
+        let price = (self.price.unwrap_or(0) * self.stack) as f64;
+        (price * mult) as i32
     }
 }

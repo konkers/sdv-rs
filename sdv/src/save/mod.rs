@@ -1,5 +1,7 @@
 use anyhow::{anyhow, Result};
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
+use num_derive::FromPrimitive;
+use num_traits::FromPrimitive;
 use roxmltree::{Node, TextPos};
 use std::{
     convert::{TryFrom, TryInto},
@@ -8,6 +10,7 @@ use std::{
     io::Read,
     str::FromStr,
 };
+use strum::EnumString;
 
 use crate::common::Season;
 
@@ -233,10 +236,57 @@ where
     Ok(vals?)
 }
 
+#[derive(Clone, EnumString, Eq, Debug, FromPrimitive, Hash, PartialEq)]
+pub enum Profession {
+    Rancher = 0,
+    Tiller = 1,
+    Coopmaster = 2,
+    Shepherd = 3,
+    Artisan = 4,
+    Agriculturist = 5,
+    Fisher = 6,
+    Trapper = 7,
+    Angler = 8,
+    Pirate = 9,
+    Mariner = 10,
+    Luremaster = 11,
+    Forester = 12,
+    Gatherer = 13,
+    Lumberjack = 14,
+    Tapper = 15,
+    Botanist = 16,
+    Tracker = 17,
+    Miner = 18,
+    Geologist = 19,
+    Blacksmith = 20,
+    Prospector = 21,
+    Excavator = 22,
+    Gemologist = 23,
+    Fighter = 24,
+    Scout = 25,
+    Brute = 26,
+    Defender = 27,
+    Acrobat = 28,
+    Desperado = 29,
+}
+
+impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for Profession {
+    type Error = SaveError<'a, 'input>;
+    fn try_from(finder: NodeFinder<'a, 'input>) -> Result<Self, Self::Error> {
+        let node = finder.node()?;
+        let id: i32 = node.finder().try_into()?;
+        Self::from_i32(id).ok_or(SaveError::Generic {
+            message: format!("unknown Profession {}", id),
+            node,
+        })
+    }
+}
+
 #[derive(Debug)]
 pub struct Player {
     pub name: String,
     pub fish_caught: IndexMap<i32, FishCaught>,
+    pub professions: IndexSet<Profession>,
     pub items: Vec<Object>,
 }
 
@@ -266,6 +316,14 @@ impl Player {
             );
         }
 
+        let professions: SaveResult<IndexSet<Profession>> = node
+            .child("professions")
+            .node()?
+            .children()
+            .filter(|n| n.has_tag_name("int"))
+            .map(|n| -> SaveResult<Profession> { n.finder().try_into() })
+            .collect();
+
         let items = match node.child("items").node().ok() {
             Some(node) => Object::array_from_node(node)?,
             None => Vec::new(),
@@ -274,6 +332,7 @@ impl Player {
         Ok(Player {
             name,
             fish_caught,
+            professions: professions?,
             items,
         })
     }

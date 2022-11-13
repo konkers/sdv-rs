@@ -247,6 +247,12 @@ fn cmd_todo(opt: &GameAndSaveOpt) -> Result<()> {
     println!("Tomorrow's weather:");
     println!("  Farm: {:?}", default_weather.tomorrow());
     println!("  Island: {:?}", island_weather.tomorrow());
+
+    println!("\nLevels:");
+    for (skill, (level, xp_to_go)) in save.player.levels() {
+        println!("  {}: {} ({} to next level)", skill, level, xp_to_go);
+    }
+
     Ok(())
 }
 

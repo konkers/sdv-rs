@@ -2,7 +2,7 @@ use anyhow::{anyhow, Result};
 use indexmap::{IndexMap, IndexSet};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
-use roxmltree::{Node, TextPos};
+use roxmltree::{Children, Node, TextPos};
 use std::{
     convert::{TryFrom, TryInto},
     fmt::{Debug, Display},
@@ -10,7 +10,7 @@ use std::{
     io::Read,
     str::FromStr,
 };
-use strum::EnumString;
+use strum::{Display, EnumString};
 
 use crate::common::Season;
 
@@ -85,6 +85,14 @@ impl<'a, 'input: 'a> NodeFinder<'a, 'input> {
             Self::Err(e) => Err(e.clone()),
         }
     }
+
+    pub(crate) fn children(self) -> SaveResult<'a, 'input, Children<'a, 'input>> {
+        match self {
+            Self::Node(n) => Ok(n.children()),
+            Self::Err(e) => Err(e.clone()),
+        }
+    }
+
     pub(crate) fn convert<T: FromStr>(self) -> SaveResult<'a, 'input, T>
     where
         T::Err: Display,
@@ -282,11 +290,21 @@ impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for Profession {
     }
 }
 
+#[derive(Clone, Copy, Display, EnumString, Eq, Debug, FromPrimitive, Hash, PartialEq)]
+pub enum Skill {
+    Farming = 0,
+    Fishing = 1,
+    Foraging = 2,
+    Mining = 3,
+    Combat = 4,
+}
+
 #[derive(Debug)]
 pub struct Player {
     pub name: String,
     pub fish_caught: IndexMap<i32, FishCaught>,
     pub professions: IndexSet<Profession>,
+    pub experience: IndexMap<Skill, i32>,
     pub items: Vec<Object>,
 }
 
@@ -324,6 +342,25 @@ impl Player {
             .map(|n| -> SaveResult<Profession> { n.finder().try_into() })
             .collect();
 
+        let xp: SaveResult<Vec<i32>> = node
+            .child("experiencePoints")
+            .children()?
+            .filter(|n| n.has_tag_name("int"))
+            .map(|n| -> SaveResult<i32> { n.finder().try_into() })
+            .collect();
+
+        let experience = xp?
+            .iter()
+            .enumerate()
+            .filter_map(|(index, value)| {
+                if let Some(skill) = Skill::from_i32(index as i32) {
+                    Some((skill, *value))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
         let items = match node.child("items").node().ok() {
             Some(node) => Object::array_from_node(node)?,
             None => Vec::new(),
@@ -333,8 +370,29 @@ impl Player {
             name,
             fish_caught,
             professions: professions?,
+            experience,
             items,
         })
+    }
+
+    pub fn levels(&self) -> IndexMap<Skill, (i32, i32)> {
+        const LEVEL_XP: &[i32] = &[0, 100, 380, 770, 1300, 2150, 3300, 4800, 6900, 10000, 15000];
+        self.experience
+            .iter()
+            .map(|(skill, xp)| {
+                let (level, _) = LEVEL_XP
+                    .iter()
+                    .enumerate()
+                    .rev()
+                    .find(|(_level, level_xp)| xp >= level_xp)
+                    .unwrap();
+                if level == 10 {
+                    (*skill, (level as i32, 0))
+                } else {
+                    (*skill, (level as i32, LEVEL_XP[level + 1] - xp))
+                }
+            })
+            .collect()
     }
 }
 

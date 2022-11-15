@@ -3,6 +3,7 @@ use crossterm::style::Color::*;
 use sdv::{
     common::{ObjectCategory, Point},
     gamedata::GameData,
+    predictor::Geode,
     save::Object,
     SaveGame,
 };
@@ -53,6 +54,7 @@ enum Opt {
     Bundles(GameAndSaveOpt),
     Dump(DumpOpt),
     Fish(GameAndSaveOpt),
+    Geodes(GameAndSaveOpt),
     Items(ItemsOpt),
     Todo(GameAndSaveOpt),
 }
@@ -192,6 +194,19 @@ fn cmd_items(opt: &ItemsOpt) -> Result<()> {
     text.push_str(&format!("|**Total**||{}||\n", total));
     text.push_str("|-\n");
     println!("{}", skin.term_text(&text));
+
+    Ok(())
+}
+
+fn cmd_geodes(opt: &GameAndSaveOpt) -> Result<()> {
+    let data = GameData::load(&opt.content.game_content)?;
+    let f = File::open(&opt.file)?;
+    let mut r = BufReader::new(f);
+    let save = SaveGame::from_reader(&mut r)?;
+
+    let prediction = Geode::predict(10, 0, &data, &save)?;
+    println!("{:#?}", prediction);
+
     Ok(())
 }
 
@@ -318,6 +333,7 @@ fn main() -> Result<()> {
         Opt::Dump(o) => cmd_dump(&o)?,
         Opt::Bundles(o) => cmd_bundles(&o)?,
         Opt::Fish(o) => cmd_fish(&o)?,
+        Opt::Geodes(o) => cmd_geodes(&o)?,
         Opt::Items(o) => cmd_items(&o)?,
         Opt::Todo(o) => cmd_todo(&o)?,
     }

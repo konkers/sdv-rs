@@ -422,6 +422,7 @@ pub struct SaveGame {
     pub day_of_month: i32,
     pub year: i32,
     pub weather: IndexMap<String, LocationWeather>,
+    pub unique_id_for_this_game: i32,
 }
 
 impl SaveGame {
@@ -462,6 +463,8 @@ impl SaveGame {
             |node| LocationWeather::from_node(node.child("LocationWeather").try_into()?),
         )?;
 
+        let unique_id_for_this_game = save.child("uniqueIDForThisGame").try_into()?;
+
         Ok(SaveGame {
             player,
             locations,
@@ -469,6 +472,7 @@ impl SaveGame {
             day_of_month,
             year,
             weather,
+            unique_id_for_this_game,
         })
     }
 

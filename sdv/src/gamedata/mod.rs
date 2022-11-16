@@ -10,7 +10,10 @@ use nom::{
     sequence::{pair, preceded, terminated, tuple},
     IResult, Parser,
 };
-use std::path::{Path, PathBuf};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 
 pub mod bundle;
 pub mod fish;
@@ -18,7 +21,7 @@ pub mod object;
 
 pub use bundle::Bundle;
 pub use fish::Fish;
-pub use object::{Object, ObjectType};
+pub use object::Object;
 
 fn field_seperator(input: &str) -> IResult<&str, ()> {
     let (i, _) = opt(tag("/"))(input)?;
@@ -113,6 +116,7 @@ pub struct GameData {
     pub bundles: IndexMap<i32, Bundle>,
     pub fish: IndexMap<i32, Fish>,
     pub objects: IndexMap<i32, Object>,
+    object_name_map: HashMap<String, i32>,
 }
 
 impl GameData {
@@ -132,10 +136,16 @@ impl GameData {
         object_file.push("ObjectInformation.xnb");
         let objects = Object::load(&object_file)?;
 
+        let object_name_map = objects
+            .iter()
+            .map(|(id, object)| (object.name.clone(), *id))
+            .collect();
+
         Ok(GameData {
             bundles,
             fish,
             objects,
+            object_name_map,
         })
     }
 
@@ -143,5 +153,13 @@ impl GameData {
         self.objects
             .get(&id)
             .ok_or(anyhow!("Can't find game object {}", id))
+    }
+
+    pub fn get_object_by_name(&self, name: &str) -> Result<&Object> {
+        let id = self
+            .object_name_map
+            .get(name.into())
+            .ok_or(anyhow!("Can't find game object {}", name))?;
+        self.get_object(*id)
     }
 }

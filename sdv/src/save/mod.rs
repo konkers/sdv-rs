@@ -17,6 +17,7 @@ mod stats;
 mod weather;
 
 pub use location::Location;
+pub use object::Object;
 pub use stats::Stats;
 pub use weather::{LocationWeather, Weather};
 
@@ -194,6 +195,7 @@ where
 pub struct Player {
     pub name: String,
     pub stats: Stats,
+    pub deepest_mine_level: i32,
     pub fish_caught: IndexMap<i32, FishCaught>,
 }
 
@@ -201,6 +203,7 @@ impl Player {
     fn from_node(node: &Node) -> Result<Self> {
         let name = node.child("name").try_into()?;
         let stats = node.child("stats").try_into()?;
+        let deepest_mine_level = node.child("deepestMineLevel").try_into()?;
 
         let fish_caught_node = node.child("fishCaught").try_into()?;
         let fish_caught_i32 = map_from_node(&fish_caught_node, "int", array_of_i32)?;
@@ -224,6 +227,7 @@ impl Player {
         Ok(Player {
             name,
             stats,
+            deepest_mine_level,
             fish_caught,
         })
     }

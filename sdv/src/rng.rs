@@ -123,7 +123,17 @@ impl Rng {
         self.internal_sample()
     }
 
+    /// Pull a floating point sample from the [Rng].
+    ///
+    /// Returned values will be between 0.0 and 1.0, inclusive.  Value will
+    /// Have 31 bits of "entropy".
+    pub fn next_double(&mut self) -> f64 {
+        self.sample()
+    }
+
     /// Pull a value in the range the [Rng]
+    ///
+    /// Value returned is in the range [min_val, max_val).
     pub fn next_range(&mut self, min_val: i32, max_val: i32) -> Result<i32> {
         if min_val > max_val {
             return Err(anyhow!(

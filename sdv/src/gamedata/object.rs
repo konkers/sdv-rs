@@ -11,24 +11,11 @@ use std::{convert::TryInto, fs::File, io::BufReader, path::Path};
 use xnb::Xnb;
 
 use super::{decimal, field, field_value, remaining_fields, sub_field_value};
-use crate::common::ObjectCategory;
-
-#[derive(Clone, Eq, Debug, Hash, PartialEq)]
-pub enum ObjectType {
-    Arch,
-    Asdf,
-    Basic,
-    Cooking,
-    Crafting,
-    Fish,
-    Minerals,
-    Quest,
-    Ring,
-    Seeds,
-}
+use crate::common::{ObjectCategory, ObjectType};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Object {
+    pub id: i32,
     pub name: String,
     pub price: i32,
     pub edibility: i32,
@@ -49,7 +36,7 @@ impl Object {
         let mut objects = IndexMap::new();
 
         for (key, value) in &entries {
-            let (_, object) = Self::parse(&value)
+            let (_, object) = Self::parse(*key, &value)
                 .map_err(|e| anyhow!("Error parsing object \"{}\": {}", value, e))?;
             objects.insert(*key, object);
         }
@@ -77,7 +64,7 @@ impl Object {
         }))(i)
     }
 
-    fn parse(i: &str) -> IResult<&str, Self> {
+    fn parse(id: i32, i: &str) -> IResult<&str, Self> {
         let (i, name) = field(i)?;
         let (i, price) = field_value(decimal)(i)?;
         let (i, edibility) = field_value(decimal)(i)?;
@@ -91,6 +78,7 @@ impl Object {
         Ok((
             i,
             Object {
+                id,
                 name: name.to_string(),
                 price,
                 edibility,
@@ -112,9 +100,10 @@ mod tests {
     fn fish_object() {
         assert_eq!(
         Object::parse(
-        "Glacierfish/1000/10/Fish -4/Glacierfish/Builds a nest on the underside of glaciers./Day^Winter").unwrap(),
-        ("",
-        Object{
+            775,
+            "Glacierfish/1000/10/Fish -4/Glacierfish/Builds a nest on the underside of glaciers./Day^Winter").unwrap(),
+        ("", Object{
+            id: 775,
             name: "Glacierfish".to_string(),
             price: 1000,
             edibility: 10,
@@ -129,17 +118,19 @@ mod tests {
     #[test]
     fn ring_object() {
         assert_eq!(
-        Object::parse("Small Magnet Ring/100/-300/Ring/Small Magnet Ring/Slightly increases your radius for collecting items.").unwrap(),
-        ("",
-        Object{
-            name: "Small Magnet Ring".to_string(),
-            price: 100,
-            edibility: -300,
-            ty: ObjectType::Ring,
-            category: None,
-            display_name: "Small Magnet Ring".to_string(),
-            desc: "Slightly increases your radius for collecting items.".to_string(),
-            extra: Vec::new(),
-        }));
+            Object::parse(
+                518,
+                "Small Magnet Ring/100/-300/Ring/Small Magnet Ring/Slightly increases your radius for collecting items.").unwrap(),
+            ("", Object{
+                id: 518,
+                name: "Small Magnet Ring".to_string(),
+                price: 100,
+                edibility: -300,
+                ty: ObjectType::Ring,
+                category: None,
+                display_name: "Small Magnet Ring".to_string(),
+                desc: "Slightly increases your radius for collecting items.".to_string(),
+                extra: Vec::new(),
+            }));
     }
 }

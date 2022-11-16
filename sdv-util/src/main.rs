@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use sdv::{common::ObjectCategory, gamedata::GameData, SaveGame};
+use sdv::{common::ObjectCategory, gamedata::GameData, predictor::Geode, SaveGame};
 use std::{collections::HashSet, fs::File, io::BufReader, iter::FromIterator, path::PathBuf};
 use structopt::StructOpt;
 
@@ -37,6 +37,7 @@ enum Opt {
     Bundles(GameAndSaveOpt),
     Dump(DumpOpt),
     Fish(GameAndSaveOpt),
+    Geodes(GameAndSaveOpt),
     Todo(GameAndSaveOpt),
 }
 
@@ -69,6 +70,18 @@ fn cmd_fish(opt: &GameAndSaveOpt) -> Result<()> {
     {
         println!("  {}", &fish.name());
     }
+    Ok(())
+}
+
+fn cmd_geodes(opt: &GameAndSaveOpt) -> Result<()> {
+    let data = GameData::load(&opt.content.game_content)?;
+    let f = File::open(&opt.file)?;
+    let mut r = BufReader::new(f);
+    let save = SaveGame::from_reader(&mut r)?;
+
+    let prediction = Geode::predict(10, 0, &data, &save)?;
+    println!("{:#?}", prediction);
+
     Ok(())
 }
 
@@ -189,6 +202,7 @@ fn main() -> Result<()> {
         Opt::Dump(o) => cmd_dump(&o)?,
         Opt::Bundles(o) => cmd_bundles(&o)?,
         Opt::Fish(o) => cmd_fish(&o)?,
+        Opt::Geodes(o) => cmd_geodes(&o)?,
         Opt::Todo(o) => cmd_todo(&o)?,
     }
 

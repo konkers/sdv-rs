@@ -13,9 +13,11 @@ use crate::common::Season;
 
 mod location;
 mod object;
+mod stats;
 mod weather;
 
 pub use location::Location;
+pub use stats::Stats;
 pub use weather::{LocationWeather, Weather};
 
 pub(crate) enum NodeFinder<'a, 'input: 'a> {
@@ -71,6 +73,13 @@ impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for Node<'a, 'input> {
 }
 
 impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for i32 {
+    type Error = anyhow::Error;
+    fn try_from(finder: NodeFinder) -> Result<Self, Self::Error> {
+        finder.convert()
+    }
+}
+
+impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for u32 {
     type Error = anyhow::Error;
     fn try_from(finder: NodeFinder) -> Result<Self, Self::Error> {
         finder.convert()
@@ -184,12 +193,14 @@ where
 #[derive(Debug)]
 pub struct Player {
     pub name: String,
+    pub stats: Stats,
     pub fish_caught: IndexMap<i32, FishCaught>,
 }
 
 impl Player {
     fn from_node(node: &Node) -> Result<Self> {
         let name = node.child("name").try_into()?;
+        let stats = node.child("stats").try_into()?;
 
         let fish_caught_node = node.child("fishCaught").try_into()?;
         let fish_caught_i32 = map_from_node(&fish_caught_node, "int", array_of_i32)?;
@@ -210,7 +221,11 @@ impl Player {
             );
         }
 
-        Ok(Player { name, fish_caught })
+        Ok(Player {
+            name,
+            stats,
+            fish_caught,
+        })
     }
 }
 

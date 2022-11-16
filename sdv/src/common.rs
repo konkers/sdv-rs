@@ -108,8 +108,27 @@ impl Weather {
     }
 }
 
-#[derive(Clone, EnumString, Eq, Debug, FromPrimitive, Hash, PartialEq)]
+#[derive(Debug, Default, Clone, EnumString, Eq, PartialEq)]
+#[strum(ascii_case_insensitive)]
+pub enum ObjectType {
+    #[default]
+    Unknown,
+    Arch,
+    Asdf,
+    Basic,
+    Cooking,
+    Crafting,
+    Fish,
+    Interactive,
+    Minerals,
+    Quest,
+    Ring,
+    Seeds,
+}
+
+#[derive(Clone, Default, EnumString, Eq, Debug, FromPrimitive, Hash, PartialEq)]
 pub enum ObjectCategory {
+    #[default]
     None = 0,
     Gem = -2,
     Fish = -4,

@@ -3,13 +3,13 @@ use crossterm::style::Color::*;
 use sdv::{
     common::{ObjectCategory, Point},
     gamedata::GameData,
-    predictor::Geode,
+    predictor::{Geode, GeodeType},
     save::Object,
     SaveGame,
 };
 use std::{collections::HashSet, fs::File, io::BufReader, iter::FromIterator, path::PathBuf};
 use structopt::StructOpt;
-use termimad::*;
+use termimad::{minimad::TextTemplate, *};
 
 #[derive(Debug, StructOpt)]
 struct GameContentLoc {
@@ -204,8 +204,55 @@ fn cmd_geodes(opt: &GameAndSaveOpt) -> Result<()> {
     let mut r = BufReader::new(f);
     let save = SaveGame::from_reader(&mut r)?;
 
-    let prediction = Geode::predict(10, 0, &data, &save)?;
-    println!("{:#?}", prediction);
+    let prediction = Geode::predict(10, 1, &data, &save)?;
+    let mut skin = MadSkin::default();
+    skin.set_headers_fg(rgb(255, 187, 0));
+    skin.bold.set_fg(Yellow);
+    skin.italic.set_fgbg(Magenta, rgb(30, 30, 40));
+    skin.paragraph.align = Alignment::Center;
+    skin.table.align = Alignment::Center;
+    let text_template = TextTemplate::from(
+        r#"
+    |:-:|:-|:-|:-|:-|:-|:-|
+    |**N**|**Geode**|**Frozen Geode**|**Magma Geode**|**Omni Geode**|**Artifact Trove**|**Golden Coconut**|
+    |:-:|:-|:-|:-|:-|:-|:-|
+    ${rows
+    |**${i}**|${geode}|${frozen_geode}|${magma_geode}|${omni_geode}|${artifact_trove}|${golden_coconut}|
+    }
+    |:-:|:-|:-|:-|:-|:-|:-|
+    "#,
+    );
+
+    let mut expander = text_template.expander();
+    let indexes: Vec<String> = (0..10).map(|i| format!("{}", i + 1)).collect();
+    for i in 0..10 {
+        expander
+            .sub("rows")
+            .set("i", &indexes[i])
+            .set("geode", &prediction.get(&GeodeType::Geode).unwrap()[i].name)
+            .set(
+                "frozen_geode",
+                &prediction.get(&GeodeType::FrozenGeode).unwrap()[i].name,
+            )
+            .set(
+                "magma_geode",
+                &prediction.get(&GeodeType::MagmaGeode).unwrap()[i].name,
+            )
+            .set(
+                "omni_geode",
+                &prediction.get(&GeodeType::OmniGeode).unwrap()[i].name,
+            )
+            .set(
+                "artifact_trove",
+                &prediction.get(&GeodeType::ArtifactTrove).unwrap()[i].name,
+            )
+            .set(
+                "golden_coconut",
+                &prediction.get(&GeodeType::GoldenCoconut).unwrap()[i].name,
+            );
+    }
+
+    skin.print_expander(expander);
 
     Ok(())
 }

@@ -3,27 +3,12 @@ use std::convert::{TryFrom, TryInto};
 use anyhow::Result;
 use indexmap::IndexSet;
 use roxmltree::Node;
-use strum::EnumString;
 
 use super::{Finder, NodeFinder, Profession, SaveError, SaveResult};
-use crate::common::{ObjectCategory, Point, Rect};
-
-#[derive(Debug, EnumString, Eq, PartialEq)]
-#[strum(ascii_case_insensitive)]
-pub enum ObjectType {
-    Unknown,
-    Arch,
-    Asdf,
-    Basic,
-    Cooking,
-    Crafting,
-    Fish,
-    Interactive,
-    Minerals,
-    Quest,
-    Ring,
-    Seeds,
-}
+use crate::{
+    common::{ObjectCategory, ObjectType, Point, Rect},
+    gamedata,
+};
 
 impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for ObjectType {
     type Error = SaveError<'a, 'input>;
@@ -32,7 +17,7 @@ impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for ObjectType {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Default, PartialEq)]
 pub struct Object {
     pub is_lost: bool,
     pub category: ObjectCategory,
@@ -252,5 +237,21 @@ impl Object {
             };
         let price = (self.price.unwrap_or(0) * self.stack) as f64;
         (price * mult) as i32
+    }
+
+    pub fn from_gamedata(object: &gamedata::Object, quantity: i32) -> Object {
+        Object {
+            category: object.category.clone().unwrap_or_default(),
+            name: object.name.clone(),
+            name2: object.name.clone(),
+            parent_sheet_index: Some(object.id),
+            display_name: object.display_name.clone(),
+            ty: object.ty.clone(),
+            stack: quantity,
+            price: Some(object.price),
+            edibility: Some(object.edibility),
+
+            ..Default::default()
+        }
     }
 }

@@ -1,7 +1,5 @@
-use std::convert::{TryFrom, TryInto};
-
-use anyhow::Result;
 use roxmltree::Node;
+use std::convert::{TryFrom, TryInto};
 
 use super::{Finder, NodeFinder, SaveError, SaveResult};
 

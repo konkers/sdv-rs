@@ -1,14 +1,24 @@
 use anyhow::{anyhow, Result};
 use crossterm::style::Color::*;
+use indexmap::IndexSet;
+use num_traits::FromPrimitive;
 use sdv::{
     common::{ObjectCategory, Point},
-    gamedata::GameData,
+    gamedata::{self, GameData},
     predictor::{Geode, GeodeType},
-    save::Object,
+    save::{self, Object, Profession},
     SaveGame,
 };
-use std::{collections::HashSet, fs::File, io::BufReader, iter::FromIterator, path::PathBuf};
+use std::{
+    collections::{HashMap, HashSet},
+    fs::File,
+    io::BufReader,
+    iter::FromIterator,
+    ops::Deref,
+    path::PathBuf,
+};
 use structopt::StructOpt;
+use strum::{EnumIter, IntoEnumIterator};
 use termimad::{minimad::TextTemplate, *};
 
 #[derive(Debug, StructOpt)]
@@ -107,17 +117,13 @@ impl std::fmt::Display for ItemLocation {
     }
 }
 
+#[derive(Debug)]
 struct Item<'a> {
     object: &'a Object,
     location: ItemLocation,
 }
 
-fn cmd_items(opt: &ItemsOpt) -> Result<()> {
-    let _data = GameData::load(&opt.loc.content.game_content)?;
-    let f = File::open(&opt.loc.file)?;
-    let mut r = BufReader::new(f);
-    let save = SaveGame::from_reader(&mut r)?;
-
+fn get_all_items(save: &SaveGame, all: bool) -> Vec<Item> {
     let mut items = Vec::new();
 
     for item in &save.player.items {
@@ -136,7 +142,7 @@ fn cmd_items(opt: &ItemsOpt) -> Result<()> {
                         location: ItemLocation::Chest(name.clone(), *pos),
                     });
                 }
-            } else if opt.all {
+            } else if all {
                 items.push(Item {
                     object: object,
                     location: ItemLocation::Map(name.clone(), *pos),
@@ -144,6 +150,17 @@ fn cmd_items(opt: &ItemsOpt) -> Result<()> {
             }
         }
     }
+
+    items
+}
+
+fn cmd_items(opt: &ItemsOpt) -> Result<()> {
+    let _data = GameData::load(&opt.loc.content.game_content)?;
+    let f = File::open(&opt.loc.file)?;
+    let mut r = BufReader::new(f);
+    let save = SaveGame::from_reader(&mut r)?;
+
+    let mut items = get_all_items(&save, opt.all);
 
     items.sort_by(|a, b| {
         a.object
@@ -198,11 +215,99 @@ fn cmd_items(opt: &ItemsOpt) -> Result<()> {
     Ok(())
 }
 
+fn optimize_geodes(
+    geode_count: &mut Vec<(GeodeType, i32)>,
+    predictions: &HashMap<GeodeType, Vec<save::Object>>,
+    professions: &IndexSet<Profession>,
+    level: usize,
+    num_predictions: usize,
+    memo: &mut HashMap<Vec<(GeodeType, i32)>, (i32, Vec<(GeodeType, i32, i32)>)>,
+) -> (i32, Vec<(GeodeType, i32, i32)>) {
+    if level >= num_predictions {
+        return (0, Vec::with_capacity(num_predictions));
+    }
+
+    if let Some(result) = memo.get(geode_count) {
+        return (result.0, result.1.clone());
+    }
+
+    let chain = GeodeType::iter()
+        .enumerate()
+        .filter_map(|(i, ty)| {
+            if geode_count[i].1 <= 0 {
+                None
+            } else {
+                geode_count[i].1 -= 1;
+                let reward = &predictions.get(&ty).unwrap()[level];
+                let value = reward.stack_price(professions)
+                    - 25
+                    - match ty {
+                        GeodeType::Geode => 50,
+                        GeodeType::FrozenGeode => 100,
+                        GeodeType::MagmaGeode => 150,
+                        GeodeType::OmniGeode => 0,
+                        GeodeType::ArtifactTrove => 0,
+                        GeodeType::GoldenCoconut => 0,
+                    };
+                let mut new_chain = optimize_geodes(
+                    geode_count,
+                    predictions,
+                    professions,
+                    level + 1,
+                    num_predictions,
+                    memo,
+                );
+                geode_count[i].1 += 1;
+
+                new_chain.0 += value;
+                new_chain.1.push((ty, reward.id(), value));
+                Some(new_chain)
+            }
+        })
+        .max_by(|a, b| a.0.cmp(&b.0))
+        .unwrap();
+
+    memo.insert(geode_count.clone(), chain.clone());
+
+    chain
+}
+
 fn cmd_geodes(opt: &GameAndSaveOpt) -> Result<()> {
     let data = GameData::load(&opt.content.game_content)?;
     let f = File::open(&opt.file)?;
     let mut r = BufReader::new(f);
     let save = SaveGame::from_reader(&mut r)?;
+
+    let geodes_map = get_all_items(&save, false)
+        .iter()
+        .filter(|i| i.object.is_geode())
+        .fold(HashMap::new(), |mut map, item| {
+            *map.entry(GeodeType::from_i32(item.object.id()).unwrap())
+                .or_insert(0) += item.object.stack;
+            map
+        });
+
+    let mut geodes: Vec<(GeodeType, i32)> = GeodeType::iter()
+        .map(|t| (t, *geodes_map.get(&t).unwrap_or(&0)))
+        .collect();
+
+    let num_geodes = geodes.iter().fold(0, |count, (_id, num)| count + num);
+
+    let predictions = Geode::predict(num_geodes, 1, &data, &save)?;
+    let chain = optimize_geodes(
+        &mut geodes,
+        &predictions,
+        &save.player.professions,
+        0,
+        num_geodes as usize,
+        &mut HashMap::new(),
+    );
+
+    println!("chain value: {}", chain.0);
+    for (i, entry) in chain.1.iter().rev().enumerate() {
+        let object = data.get_object(entry.1).unwrap();
+        println!(" {} {:?} -> {} {}", i + 1, entry.0, object.name, entry.2);
+    }
 
     let prediction = Geode::predict(10, 1, &data, &save)?;
     let mut skin = MadSkin::default();

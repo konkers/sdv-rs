@@ -175,3 +175,26 @@ impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for ObjectCategory {
         })
     }
 }
+
+// TODO: Generate this from game data.
+#[repr(i32)]
+pub enum ObjectId {
+    PrismaticShard = 74,
+    FireQuartz = 82,
+    FrozenTear = 84,
+    EarthCrystal = 86,
+    ArtifactTrove = 275,
+    Clay = 330,
+    CopperOre = 378,
+    IronOre = 380,
+    Coal = 382,
+    GoldOre = 384,
+    IridiumOre = 386,
+    Stone = 390,
+    Geode = 535,
+    FrozenGeode = 536,
+    MagmaGeode = 537,
+    OmniGeode = 749,
+    GoldenCoconut = 791,
+    QiBean = 890,
+}

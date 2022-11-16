@@ -1,34 +1,19 @@
 use std::collections::HashMap;
 
 use anyhow::{anyhow, Result};
+use num_derive::FromPrimitive;
 use strum::{EnumIter, IntoEnumIterator};
 
-use crate::rng::Rng;
-use crate::{gamedata, save, GameData, SaveGame};
+use crate::{common::ObjectId, gamedata, rng::Rng, save, GameData, SaveGame};
 
-// TODO: Convert to an enum and move to crate::common.
-const PRISMATIC_SHARD_ID: i32 = 74;
-const FIRE_QUARTZ_ID: i32 = 82;
-const FROZEN_TEAR_ID: i32 = 84;
-const EARTH_CRYSTAL_ID: i32 = 86;
-const CLAY_ID: i32 = 330;
-const COPPER_ORE_ID: i32 = 378;
-const IRON_ORE_ID: i32 = 380;
-const COAL_ID: i32 = 382;
-const GOLD_ORE_ID: i32 = 384;
-const IRIDIUM_ORE_ID: i32 = 386;
-const STONE_ID: i32 = 390;
-const QI_BEAN_ID: i32 = 890;
-
-#[derive(Clone, Copy, Debug, EnumIter, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, EnumIter, Eq, FromPrimitive, Hash, PartialEq)]
 pub enum GeodeType {
-    // 538 542 548 549 552 555 556 557 558 566 568 569 571 574 576 121
-    Geode,         // 535
-    FrozenGeode,   // 536
-    MagmaGeode,    // 537
-    OmniGeode,     // 749
-    ArtifactTrove, // 275
-    GoldenCoconut, // 791
+    Geode = 535,
+    FrozenGeode = 536,
+    MagmaGeode = 537,
+    OmniGeode = 749,
+    ArtifactTrove = 275,
+    GoldenCoconut = 791,
 }
 
 impl GeodeType {
@@ -106,12 +91,6 @@ impl<'a> Geode<'a> {
         game_data: &GameData,
         save: &SaveGame,
     ) -> Result<HashMap<GeodeType, Vec<save::Object>>> {
-        println!("seed: {}", save.unique_id_for_this_game);
-        println!("num predictons: {}", num_predictions);
-        println!(
-            "geodes cracked: {}",
-            save.player.stats.geodes_cracked as i32 + offset
-        );
         GeodeType::iter()
             .map(|ty| -> Result<(GeodeType, Vec<save::Object>)> {
                 let geode = Geode::new(ty, game_data)?;
@@ -150,7 +129,7 @@ impl<'a> Geode<'a> {
         if rng.next_double() <= 0.1 && false {
             let quantity = if rng.next_double() < 0.25 { 5 } else { 1 };
             return Ok(save::Object::from_gamedata(
-                game_data.get_object(QI_BEAN_ID)?,
+                game_data.get_object(ObjectId::QiBean as i32)?,
                 quantity,
             ));
         }
@@ -175,7 +154,7 @@ impl<'a> Geode<'a> {
                     && geodes_cracked > 15
                 {
                     return Ok(save::Object::from_gamedata(
-                        game_data.get_object(PRISMATIC_SHARD_ID)?,
+                        game_data.get_object(ObjectId::PrismaticShard as i32)?,
                         1,
                     ));
                 }
@@ -194,19 +173,21 @@ impl<'a> Geode<'a> {
             if rng.next_double() < 0.5 {
                 return match rng.next_max(4) {
                     0 | 1 => Ok(save::Object::from_gamedata(
-                        game_data.get_object(STONE_ID)?,
+                        game_data.get_object(ObjectId::Stone as i32)?,
                         quantity,
                     )),
                     2 => Ok(save::Object::from_gamedata(
-                        game_data.get_object(CLAY_ID)?,
+                        game_data.get_object(ObjectId::Clay as i32)?,
                         1,
                     )),
                     3 | _ => {
                         let id = match geode.ty {
-                            GeodeType::OmniGeode => FIRE_QUARTZ_ID + rng.next_max(3) * 2,
-                            GeodeType::Geode => EARTH_CRYSTAL_ID,
-                            GeodeType::FrozenGeode => FROZEN_TEAR_ID,
-                            _ => FIRE_QUARTZ_ID,
+                            GeodeType::OmniGeode => {
+                                ObjectId::FireQuartz as i32 + rng.next_max(3) * 2
+                            }
+                            GeodeType::Geode => ObjectId::EarthCrystal as i32,
+                            GeodeType::FrozenGeode => ObjectId::FrozenTear as i32,
+                            _ => ObjectId::FireQuartz as i32,
                         };
                         Ok(save::Object::from_gamedata(game_data.get_object(id)?, 1))
                     }
@@ -214,37 +195,37 @@ impl<'a> Geode<'a> {
             } else {
                 let id = match geode.ty {
                     GeodeType::Geode => match rng.next_max(3) {
-                        0 => COPPER_ORE_ID,
+                        0 => ObjectId::CopperOre as i32,
                         1 => {
                             if save.player.deepest_mine_level > 25 {
-                                IRON_ORE_ID
+                                ObjectId::IronOre as i32
                             } else {
-                                COPPER_ORE_ID
+                                ObjectId::CopperOre as i32
                             }
                         }
-                        2 | _ => COAL_ID,
+                        2 | _ => ObjectId::Coal as i32,
                     },
                     GeodeType::FrozenGeode => match rng.next_max(4) {
-                        0 => COPPER_ORE_ID,
-                        1 => IRON_ORE_ID,
-                        2 => COAL_ID,
+                        0 => ObjectId::CopperOre as i32,
+                        1 => ObjectId::IronOre as i32,
+                        2 => ObjectId::Coal as i32,
                         3 | _ => {
                             if save.player.deepest_mine_level > 75 {
-                                GOLD_ORE_ID
+                                ObjectId::GoldOre as i32
                             } else {
-                                IRON_ORE_ID
+                                ObjectId::IronOre as i32
                             }
                         }
                     },
 
                     _ => match rng.next_max(5) {
-                        0 => COPPER_ORE_ID,
-                        1 => IRON_ORE_ID,
-                        2 => COAL_ID,
-                        3 => GOLD_ORE_ID,
+                        0 => ObjectId::CopperOre as i32,
+                        1 => ObjectId::IronOre as i32,
+                        2 => ObjectId::Coal as i32,
+                        3 => ObjectId::GoldOre as i32,
                         4 | _ => {
                             quantity = quantity / 2 + 1;
-                            IRIDIUM_ORE_ID
+                            ObjectId::IridiumOre as i32
                         }
                     },
                 };

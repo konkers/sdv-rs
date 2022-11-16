@@ -6,7 +6,7 @@ use roxmltree::Node;
 
 use super::{Finder, NodeFinder, Profession, SaveError, SaveResult};
 use crate::{
-    common::{ObjectCategory, ObjectType, Point, Rect},
+    common::{ObjectCategory, ObjectId, ObjectType, Point, Rect},
     gamedata,
 };
 
@@ -17,7 +17,7 @@ impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for ObjectType {
     }
 }
 
-#[derive(Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Object {
     pub is_lost: bool,
     pub category: ObjectCategory,
@@ -253,5 +253,19 @@ impl Object {
 
             ..Default::default()
         }
+    }
+
+    pub fn id(&self) -> i32 {
+        self.parent_sheet_index.unwrap_or(0)
+    }
+
+    pub fn is_geode(&self) -> bool {
+        let id = self.id();
+        id == ObjectId::Geode as i32
+            || id == ObjectId::FrozenGeode as i32
+            || id == ObjectId::MagmaGeode as i32
+            || id == ObjectId::OmniGeode as i32
+            || id == ObjectId::ArtifactTrove as i32
+            || id == ObjectId::GoldenCoconut as i32
     }
 }

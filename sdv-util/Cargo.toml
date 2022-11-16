@@ -8,7 +8,10 @@ edition = "2018"
 
 [dependencies]
 anyhow = "1.0"
+indexmap = "1.6.1"
+num-traits = "0.2"
 structopt = "0.3"
+strum = { version = "0.24", features = ["derive"] }
 sdv = { path = "../sdv" }
 termimad = "0.20"
 crossterm = "0.23.1"

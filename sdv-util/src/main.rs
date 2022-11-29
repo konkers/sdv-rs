@@ -56,6 +56,9 @@ struct ItemsOpt {
     loc: GameAndSaveOpt,
 
     #[structopt(long)]
+    csv: bool,
+
+    #[structopt(long)]
     all: bool,
 }
 
@@ -101,7 +104,7 @@ fn cmd_fish(opt: &GameAndSaveOpt) -> Result<()> {
     Ok(())
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 enum ItemLocation {
     Player,
     Map(String, Point<i32>),
@@ -162,56 +165,73 @@ fn cmd_items(opt: &ItemsOpt) -> Result<()> {
 
     let mut items = get_all_items(&save, opt.all);
 
-    items.sort_by(|a, b| {
-        a.object
-            .stack_price(&save.player.professions)
-            .partial_cmp(&b.object.stack_price(&save.player.professions))
-            .unwrap()
-    });
-
-    let total: i64 = items
+    let mut items: Vec<_> = items
         .iter()
-        .map(|item| item.object.stack_price(&save.player.professions) as i64)
-        .sum();
+        .fold(HashMap::new(), |mut acc, item| {
+            let mut entry = acc
+                .entry((item.object.name.clone(), item.object.quality))
+                .or_insert((0, Vec::new(), item.object.clone(), 0));
+            entry.0 += item.object.stack_price(&save.player.professions);
+            entry.1.push(item.location.clone());
+            entry.3 += item.object.stack;
 
-    let mut skin = MadSkin::default();
-    skin.set_headers_fg(rgb(255, 187, 0));
-    skin.bold.set_fg(Yellow);
-    skin.italic.set_fgbg(Magenta, rgb(30, 30, 40));
-    skin.paragraph.align = Alignment::Center;
-    skin.table.align = Alignment::Center;
+            acc
+        })
+        .into_iter()
+        .collect();
 
-    let mut text = "|:-:|:-:|:-:|\n".to_string();
-    text.push_str("|**Name**|**Qty**|**Price**|**Location**|\n");
-    text.push_str("|:-|:-:|:-:|-\n");
+    items.sort_by(|a, b| a.1 .0.partial_cmp(&b.1 .0).unwrap());
 
-    for item in items {
-        let quality = item.object.quality.unwrap_or(0);
-        let quality_txt = match quality {
-            1 => " (s)",
-            2 => " (**g**)",
-            4 => " (*i*)",
-            _ => "",
-        };
+    if opt.csv {
+        for item in items {
+            let quality = item.1 .2.quality.unwrap_or(0);
+            let name = item.1 .2.name;
+            let quantity = item.1 .3;
+            let stack_price = item.1 .0;
 
-        let stack_price = item.object.stack_price(&save.player.professions);
-        if item.object.price_multiplier(&save.player.professions) > 1.0 {
-            text.push_str(&format!(
-                "|**{}**{} |{} | **{}** |{} |\n",
-                item.object.name, quality_txt, item.object.stack, stack_price, item.location,
-            ));
-        } else {
-            text.push_str(&format!(
-                "|{}{} |{} | {} |{} |\n",
-                item.object.name, quality_txt, item.object.stack, stack_price, item.location,
-            ));
+            println!("{}, {}, {}, {}", name, quality, quantity, stack_price);
         }
-    }
-    text.push_str("|:-|:-:|:-:|-\n");
-    text.push_str(&format!("|**Total**||{}||\n", total));
-    text.push_str("|-\n");
-    println!("{}", skin.term_text(&text));
+    } else {
+        let total: i64 = items.iter().map(|item| item.1 .0 as i64).sum();
 
+        let mut skin = MadSkin::default();
+        skin.set_headers_fg(rgb(255, 187, 0));
+        skin.bold.set_fg(Yellow);
+        skin.italic.set_fgbg(Magenta, rgb(30, 30, 40));
+        skin.paragraph.align = Alignment::Center;
+        skin.table.align = Alignment::Center;
+
+        let mut text = "|:-:|:-:|:-:|\n".to_string();
+        text.push_str("|**Name**|**Qty**|**Price**|**Location**|\n");
+        text.push_str("|:-|:-:|:-:|-\n");
+
+        for item in items {
+            let quality = item.1 .2.quality.unwrap_or(0);
+            let quality_txt = match quality {
+                1 => " (s)",
+                2 => " (**g**)",
+                4 => " (*i*)",
+                _ => "",
+            };
+
+            let stack_price = item.1 .0;
+            if item.1 .2.price_multiplier(&save.player.professions) > 1.0 {
+                text.push_str(&format!(
+                    "|**{}**{} |{} | **{}** |{} |\n",
+                    item.1 .2.name, quality_txt, item.1 .3, stack_price, "",
+                ));
+            } else {
+                text.push_str(&format!(
+                    "|{}{} |{} | {} |{} |\n",
+                    item.1 .2.name, quality_txt, item.1 .3, stack_price, "",
+                ));
+            }
+        }
+        text.push_str("|:-|:-:|:-:|-\n");
+        text.push_str(&format!("|**Total**||{}||\n", total));
+        text.push_str("|-\n");
+        println!("{}", skin.term_text(&text));
+    }
     Ok(())
 }
 

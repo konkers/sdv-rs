@@ -17,11 +17,15 @@ use std::{
 
 pub mod bundle;
 pub mod fish;
+pub mod map;
 pub mod object;
+pub mod texture;
 
 pub use bundle::Bundle;
 pub use fish::Fish;
+pub use map::{Map, Tile};
 pub use object::Object;
+pub use texture::Texture;
 
 fn field_seperator(input: &str) -> IResult<&str, ()> {
     let (i, _) = opt(tag("/"))(input)?;
@@ -117,11 +121,13 @@ pub struct GameData {
     pub fish: IndexMap<i32, Fish>,
     pub objects: IndexMap<i32, Object>,
     object_name_map: HashMap<String, i32>,
+    game_content_dir: PathBuf,
 }
 
 impl GameData {
     pub fn load<P: AsRef<Path>>(game_content_dir: P) -> Result<GameData> {
-        let mut data_dir: PathBuf = game_content_dir.as_ref().to_path_buf();
+        let game_content_dir = game_content_dir.as_ref().to_path_buf();
+        let mut data_dir = game_content_dir.clone();
         data_dir.push("Data");
 
         let mut bundle_file = data_dir.clone();
@@ -146,6 +152,7 @@ impl GameData {
             fish,
             objects,
             object_name_map,
+            game_content_dir,
         })
     }
 
@@ -161,5 +168,19 @@ impl GameData {
             .get(name.into())
             .ok_or(anyhow!("Can't find game object {}", name))?;
         self.get_object(*id)
+    }
+
+    pub fn load_map<P: AsRef<Path>>(&self, path: P) -> Result<Map> {
+        let mut map_path = self.game_content_dir.clone();
+        map_path.push(path);
+
+        Map::load(map_path)
+    }
+
+    pub fn load_texture<P: AsRef<Path>>(&self, path: P) -> Result<Texture> {
+        let mut texture_path = self.game_content_dir.clone();
+        texture_path.push(path);
+
+        Texture::load(texture_path)
     }
 }

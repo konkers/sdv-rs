@@ -4,7 +4,7 @@ use indexmap::IndexSet;
 use num_traits::FromPrimitive;
 use sdv::{
     common::{ObjectCategory, Point},
-    gamedata::{self, GameData},
+    gamedata::GameData,
     predictor::{Geode, GeodeType},
     save::{self, Object, Profession},
     SaveGame,
@@ -14,12 +14,15 @@ use std::{
     fs::File,
     io::BufReader,
     iter::FromIterator,
-    ops::Deref,
     path::PathBuf,
 };
 use structopt::StructOpt;
-use strum::{EnumIter, IntoEnumIterator};
+use strum::IntoEnumIterator;
 use termimad::{minimad::TextTemplate, *};
+
+mod render_map;
+
+use render_map::cmd_render_map;
 
 #[derive(Debug, StructOpt)]
 struct GameContentLoc {
@@ -63,12 +66,21 @@ struct ItemsOpt {
 }
 
 #[derive(Debug, StructOpt)]
+struct RenderMapOpt {
+    #[structopt(flatten)]
+    content: GameContentLoc,
+
+    map_name: String,
+}
+
+#[derive(Debug, StructOpt)]
 enum Opt {
     Bundles(GameAndSaveOpt),
     Dump(DumpOpt),
     Fish(GameAndSaveOpt),
     Geodes(GameAndSaveOpt),
     Items(ItemsOpt),
+    RenderMap(RenderMapOpt),
     Todo(GameAndSaveOpt),
 }
 
@@ -163,7 +175,7 @@ fn cmd_items(opt: &ItemsOpt) -> Result<()> {
     let mut r = BufReader::new(f);
     let save = SaveGame::from_reader(&mut r)?;
 
-    let mut items = get_all_items(&save, opt.all);
+    let items = get_all_items(&save, opt.all);
 
     let mut items: Vec<_> = items
         .iter()
@@ -507,6 +519,7 @@ fn main() -> Result<()> {
         Opt::Fish(o) => cmd_fish(&o)?,
         Opt::Geodes(o) => cmd_geodes(&o)?,
         Opt::Items(o) => cmd_items(&o)?,
+        Opt::RenderMap(o) => cmd_render_map(&o)?,
         Opt::Todo(o) => cmd_todo(&o)?,
     }
 

@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "external/xnb-rs",
+  "external/xnb-util",
   "sdv",
   "sdv-util",
 ]

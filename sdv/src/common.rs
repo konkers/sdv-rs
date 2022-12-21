@@ -16,6 +16,21 @@ pub struct Point<T> {
     pub y: T,
 }
 
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq)]
+pub struct Size<T> {
+    pub h: T,
+    pub w: T,
+}
+
+impl From<xnb::value::map::Size> for Size<usize> {
+    fn from(size: xnb::value::map::Size) -> Self {
+        Self {
+            h: size.h as usize,
+            w: size.w as usize,
+        }
+    }
+}
+
 impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for Point<i32> {
     type Error = SaveError<'a, 'input>;
     fn try_from(finder: NodeFinder<'a, 'input>) -> Result<Self, Self::Error> {

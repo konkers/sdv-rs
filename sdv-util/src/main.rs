@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Result};
 use crossterm::style::Color::*;
 use indexmap::IndexSet;
+use itertools::Itertools;
 use num_traits::FromPrimitive;
 use sdv::{
     common::{ObjectCategory, Point},
@@ -225,17 +226,24 @@ fn cmd_items(opt: &ItemsOpt) -> Result<()> {
                 4 => " (*i*)",
                 _ => "",
             };
+            let locations: String = item
+                .1
+                 .1
+                .iter()
+                .map(|loc| format!("{}", loc))
+                .intersperse(", ".to_string())
+                .collect();
 
             let stack_price = item.1 .0;
             if item.1 .2.price_multiplier(&save.player.professions) > 1.0 {
                 text.push_str(&format!(
                     "|**{}**{} |{} | **{}** |{} |\n",
-                    item.1 .2.name, quality_txt, item.1 .3, stack_price, "",
+                    item.1 .2.name, quality_txt, item.1 .3, stack_price, locations,
                 ));
             } else {
                 text.push_str(&format!(
                     "|{}{} |{} | {} |{} |\n",
-                    item.1 .2.name, quality_txt, item.1 .3, stack_price, "",
+                    item.1 .2.name, quality_txt, item.1 .3, stack_price, locations,
                 ));
             }
         }

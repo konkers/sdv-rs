@@ -63,59 +63,98 @@ pub struct Stats {
 impl Stats {
     fn from_node<'a, 'input: 'a>(node: Node<'a, 'input>) -> SaveResult<'a, 'input, Stats> {
         Ok(Stats {
-            seeds_sown: node.child("seedsSown").try_into()?,
-            items_shipped: node.child("itemsShipped").try_into()?,
-            items_cooked: node.child("itemsCooked").try_into()?,
-            items_crafted: node.child("itemsCrafted").try_into()?,
-            chicken_eggs_layed: node.child("chickenEggsLayed").try_into()?,
-            duck_eggs_layed: node.child("duckEggsLayed").try_into()?,
-            cow_milk_produced: node.child("cowMilkProduced").try_into()?,
-            goat_milk_produced: node.child("goatMilkProduced").try_into()?,
-            rabbit_wool_produced: node.child("rabbitWoolProduced").try_into()?,
-            sheep_wool_produced: node.child("sheepWoolProduced").try_into()?,
-            cheese_made: node.child("cheeseMade").try_into()?,
-            goat_cheese_made: node.child("goatCheeseMade").try_into()?,
-            truffles_found: node.child("trufflesFound").try_into()?,
-            stone_gathered: node.child("stoneGathered").try_into()?,
-            rocks_crushed: node.child("rocksCrushed").try_into()?,
-            dirt_hoed: node.child("dirtHoed").try_into()?,
-            gifts_given: node.child("giftsGiven").try_into()?,
-            times_unconscious: node.child("timesUnconscious").try_into()?,
-            average_bedtime: node.child("averageBedtime").try_into()?,
-            times_fished: node.child("timesFished").try_into()?,
-            fish_caught: node.child("fishCaught").try_into()?,
-            boulders_cracked: node.child("bouldersCracked").try_into()?,
-            stumps_chopped: node.child("stumpsChopped").try_into()?,
-            steps_taken: node.child("stepsTaken").try_into()?,
-            monsters_killed: node.child("monstersKilled").try_into()?,
-            diamonds_found: node.child("diamondsFound").try_into()?,
-            prismatic_shards_found: node.child("prismaticShardsFound").try_into()?,
-            other_precious_gems_found: node.child("otherPreciousGemsFound").try_into()?,
-            cave_carrots_found: node.child("caveCarrotsFound").try_into()?,
-            copper_found: node.child("copperFound").try_into()?,
-            iron_found: node.child("ironFound").try_into()?,
-            coal_found: node.child("coalFound").try_into()?,
-            coins_found: node.child("coinsFound").try_into()?,
-            gold_found: node.child("goldFound").try_into()?,
-            iridium_found: node.child("iridiumFound").try_into()?,
-            bars_smelted: node.child("barsSmelted").try_into()?,
-            beverages_made: node.child("beveragesMade").try_into()?,
-            preserves_made: node.child("preservesMade").try_into()?,
-            pieces_of_trash_recycled: node.child("piecesOfTrashRecycled").try_into()?,
-            mystic_stones_crushed: node.child("mysticStonesCrushed").try_into()?,
-            days_played: node.child("daysPlayed").try_into()?,
-            weeds_eliminated: node.child("weedsEliminated").try_into()?,
-            sticks_chopped: node.child("sticksChopped").try_into()?,
-            notes_found: node.child("notesFound").try_into()?,
-            quests_completed: node.child("questsCompleted").try_into()?,
-            star_level_crops_shipped: node.child("starLevelCropsShipped").try_into()?,
-            crops_shipped: node.child("cropsShipped").try_into()?,
-            items_foraged: node.child("itemsForaged").try_into()?,
-            slimes_killed: node.child("slimesKilled").try_into()?,
-            geodes_cracked: node.child("geodesCracked").try_into()?,
-            good_friends: node.child("goodFriends").try_into()?,
-            total_money_gifted: node.child("totalMoneyGifted").try_into()?,
-            individual_money_earned: node.child("individualMoneyEarned").try_into()?,
+            seeds_sown: node.child("seedsSown").try_into().unwrap_or_default(),
+            items_shipped: node.child("itemsShipped").try_into().unwrap_or_default(),
+            items_cooked: node.child("itemsCooked").try_into().unwrap_or_default(),
+            items_crafted: node.child("itemsCrafted").try_into().unwrap_or_default(),
+            chicken_eggs_layed: node
+                .child("chickenEggsLayed")
+                .try_into()
+                .unwrap_or_default(),
+            duck_eggs_layed: node.child("duckEggsLayed").try_into().unwrap_or_default(),
+            cow_milk_produced: node.child("cowMilkProduced").try_into().unwrap_or_default(),
+            goat_milk_produced: node
+                .child("goatMilkProduced")
+                .try_into()
+                .unwrap_or_default(),
+            rabbit_wool_produced: node
+                .child("rabbitWoolProduced")
+                .try_into()
+                .unwrap_or_default(),
+            sheep_wool_produced: node
+                .child("sheepWoolProduced")
+                .try_into()
+                .unwrap_or_default(),
+            cheese_made: node.child("cheeseMade").try_into().unwrap_or_default(),
+            goat_cheese_made: node.child("goatCheeseMade").try_into().unwrap_or_default(),
+            truffles_found: node.child("trufflesFound").try_into().unwrap_or_default(),
+            stone_gathered: node.child("stoneGathered").try_into().unwrap_or_default(),
+            rocks_crushed: node.child("rocksCrushed").try_into().unwrap_or_default(),
+            dirt_hoed: node.child("dirtHoed").try_into().unwrap_or_default(),
+            gifts_given: node.child("giftsGiven").try_into().unwrap_or_default(),
+            times_unconscious: node
+                .child("timesUnconscious")
+                .try_into()
+                .unwrap_or_default(),
+            average_bedtime: node.child("averageBedtime").try_into().unwrap_or_default(),
+            times_fished: node.child("timesFished").try_into().unwrap_or_default(),
+            fish_caught: node.child("fishCaught").try_into().unwrap_or_default(),
+            boulders_cracked: node.child("bouldersCracked").try_into().unwrap_or_default(),
+            stumps_chopped: node.child("stumpsChopped").try_into().unwrap_or_default(),
+            steps_taken: node.child("stepsTaken").try_into().unwrap_or_default(),
+            monsters_killed: node.child("monstersKilled").try_into().unwrap_or_default(),
+            diamonds_found: node.child("diamondsFound").try_into().unwrap_or_default(),
+            prismatic_shards_found: node
+                .child("prismaticShardsFound")
+                .try_into()
+                .unwrap_or_default(),
+            other_precious_gems_found: node
+                .child("otherPreciousGemsFound")
+                .try_into()
+                .unwrap_or_default(),
+            cave_carrots_found: node
+                .child("caveCarrotsFound")
+                .try_into()
+                .unwrap_or_default(),
+            copper_found: node.child("copperFound").try_into().unwrap_or_default(),
+            iron_found: node.child("ironFound").try_into().unwrap_or_default(),
+            coal_found: node.child("coalFound").try_into().unwrap_or_default(),
+            coins_found: node.child("coinsFound").try_into().unwrap_or_default(),
+            gold_found: node.child("goldFound").try_into().unwrap_or_default(),
+            iridium_found: node.child("iridiumFound").try_into().unwrap_or_default(),
+            bars_smelted: node.child("barsSmelted").try_into().unwrap_or_default(),
+            beverages_made: node.child("beveragesMade").try_into().unwrap_or_default(),
+            preserves_made: node.child("preservesMade").try_into().unwrap_or_default(),
+            pieces_of_trash_recycled: node
+                .child("piecesOfTrashRecycled")
+                .try_into()
+                .unwrap_or_default(),
+            mystic_stones_crushed: node
+                .child("mysticStonesCrushed")
+                .try_into()
+                .unwrap_or_default(),
+            days_played: node.child("daysPlayed").try_into().unwrap_or_default(),
+            weeds_eliminated: node.child("weedsEliminated").try_into().unwrap_or_default(),
+            sticks_chopped: node.child("sticksChopped").try_into().unwrap_or_default(),
+            notes_found: node.child("notesFound").try_into().unwrap_or_default(),
+            quests_completed: node.child("questsCompleted").try_into().unwrap_or_default(),
+            star_level_crops_shipped: node
+                .child("starLevelCropsShipped")
+                .try_into()
+                .unwrap_or_default(),
+            crops_shipped: node.child("cropsShipped").try_into().unwrap_or_default(),
+            items_foraged: node.child("itemsForaged").try_into().unwrap_or_default(),
+            slimes_killed: node.child("slimesKilled").try_into().unwrap_or_default(),
+            geodes_cracked: node.child("geodesCracked").try_into().unwrap_or_default(),
+            good_friends: node.child("goodFriends").try_into().unwrap_or_default(),
+            total_money_gifted: node
+                .child("totalMoneyGifted")
+                .try_into()
+                .unwrap_or_default(),
+            individual_money_earned: node
+                .child("individualMoneyEarned")
+                .try_into()
+                .unwrap_or_default(),
         })
     }
 }

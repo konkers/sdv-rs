@@ -70,7 +70,7 @@ impl Bundle {
         for (key, value) in &entries {
             let (_, (room, sprite_id)) = Bundle::parse_key(key).unwrap();
 
-            let (_, bundle) = Self::parse(room, sprite_id, &value)
+            let (_, bundle) = Self::parse(room, sprite_id, value)
                 .map_err(|e| anyhow!("Error parsing bundle \"{}\": {}", value, e))?;
             bundles.insert(sprite_id, bundle);
         }

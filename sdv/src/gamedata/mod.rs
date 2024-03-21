@@ -43,7 +43,7 @@ fn decimal(input: &str) -> IResult<&str, i32> {
             opt(char('-')),
             many1(terminated(one_of("0123456789"), many0(char('_')))),
         )),
-        |out: &str| i32::from_str_radix(&str::replace(&out, "_", ""), 10),
+        |out: &str| str::replace(out, "_", "").parse::<i32>(),
     )(input)
 }
 
@@ -107,6 +107,7 @@ where
     }
 }
 
+#[allow(dead_code)]
 fn remaining_fields<'a>(i: &'a str) -> IResult<&'a str, Vec<String>> {
     let (i, fields) = many0(|i: &'a str| {
         let (i, value) = recognize(many1(is_not("/")))(i)?;
@@ -118,9 +119,9 @@ fn remaining_fields<'a>(i: &'a str) -> IResult<&'a str, Vec<String>> {
 }
 pub struct GameData {
     pub bundles: IndexMap<i32, Bundle>,
-    pub fish: IndexMap<i32, Fish>,
-    pub objects: IndexMap<i32, Object>,
-    object_name_map: HashMap<String, i32>,
+    pub fish: IndexMap<String, Fish>,
+    pub objects: IndexMap<String, Object>,
+    object_name_map: HashMap<String, String>,
     game_content_dir: PathBuf,
 }
 
@@ -139,12 +140,12 @@ impl GameData {
         let fish = Fish::load(&fish_file)?;
 
         let mut object_file = data_dir.clone();
-        object_file.push("ObjectInformation.xnb");
-        let objects = Object::load(&object_file)?;
+        object_file.push("Objects.xnb");
+        let objects = object::load_objects(&object_file)?;
 
         let object_name_map = objects
             .iter()
-            .map(|(id, object)| (object.name.clone(), *id))
+            .map(|(id, object)| (object.name.clone(), id.clone()))
             .collect();
 
         Ok(GameData {
@@ -156,18 +157,18 @@ impl GameData {
         })
     }
 
-    pub fn get_object(&self, id: i32) -> Result<&Object> {
+    pub fn get_object(&self, id: &str) -> Result<&Object> {
         self.objects
-            .get(&id)
+            .get(id)
             .ok_or(anyhow!("Can't find game object {}", id))
     }
 
     pub fn get_object_by_name(&self, name: &str) -> Result<&Object> {
         let id = self
             .object_name_map
-            .get(name.into())
+            .get(name)
             .ok_or(anyhow!("Can't find game object {}", name))?;
-        self.get_object(*id)
+        self.get_object(id)
     }
 
     pub fn load_map<P: AsRef<Path>>(&self, path: P) -> Result<Map> {

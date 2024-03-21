@@ -141,9 +141,9 @@ impl<'a> Geode<'a> {
             }
 
             let reward = &geode.rewards[rng.next_max(geode.rewards.len() as i32) as usize];
-            return Ok(save::Object::from_gamedata(reward.item, reward.quantity));
+            Ok(save::Object::from_gamedata(reward.item, reward.quantity))
         } else {
-            if geode.ty == GeodeType::ArtifactTrove || !(rng.next_double() < 0.5) {
+            if geode.ty == GeodeType::ArtifactTrove || rng.next_double() >= 0.5 {
                 // For artifact troves and other geodes half the time, we get the
                 // item from the object's definiton.
                 let reward = &geode.rewards[rng.next_max(geode.rewards.len() as i32) as usize];
@@ -171,7 +171,7 @@ impl<'a> Geode<'a> {
             }
 
             if rng.next_double() < 0.5 {
-                return match rng.next_max(4) {
+                match rng.next_max(4) {
                     0 | 1 => Ok(save::Object::from_gamedata(
                         game_data.get_object(ObjectId::Stone as i32)?,
                         quantity,
@@ -180,7 +180,7 @@ impl<'a> Geode<'a> {
                         game_data.get_object(ObjectId::Clay as i32)?,
                         1,
                     )),
-                    3 | _ => {
+                    _ => {
                         let id = match geode.ty {
                             GeodeType::OmniGeode => {
                                 ObjectId::FireQuartz as i32 + rng.next_max(3) * 2
@@ -191,7 +191,7 @@ impl<'a> Geode<'a> {
                         };
                         Ok(save::Object::from_gamedata(game_data.get_object(id)?, 1))
                     }
-                };
+                }
             } else {
                 let id = match geode.ty {
                     GeodeType::Geode => match rng.next_max(3) {
@@ -203,13 +203,13 @@ impl<'a> Geode<'a> {
                                 ObjectId::CopperOre as i32
                             }
                         }
-                        2 | _ => ObjectId::Coal as i32,
+                        _ => ObjectId::Coal as i32,
                     },
                     GeodeType::FrozenGeode => match rng.next_max(4) {
                         0 => ObjectId::CopperOre as i32,
                         1 => ObjectId::IronOre as i32,
                         2 => ObjectId::Coal as i32,
-                        3 | _ => {
+                        _ => {
                             if save.player.deepest_mine_level > 75 {
                                 ObjectId::GoldOre as i32
                             } else {
@@ -223,17 +223,17 @@ impl<'a> Geode<'a> {
                         1 => ObjectId::IronOre as i32,
                         2 => ObjectId::Coal as i32,
                         3 => ObjectId::GoldOre as i32,
-                        4 | _ => {
+                        _ => {
                             quantity = quantity / 2 + 1;
                             ObjectId::IridiumOre as i32
                         }
                     },
                 };
 
-                return Ok(save::Object::from_gamedata(
+                Ok(save::Object::from_gamedata(
                     game_data.get_object(id)?,
                     quantity,
-                ));
+                ))
             }
         }
     }

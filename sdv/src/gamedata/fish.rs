@@ -105,18 +105,18 @@ pub enum Fish {
 }
 
 impl Fish {
-    pub fn load<P: AsRef<Path>>(file: P) -> Result<IndexMap<i32, Self>> {
+    pub fn load<P: AsRef<Path>>(file: P) -> Result<IndexMap<String, Self>> {
         let f = File::open(file).context("Can't open fish file")?;
         let mut r = BufReader::new(f);
         let xnb = Xnb::new(&mut r).context("Can't parse fish xnb file")?;
 
-        let entries: IndexMap<i32, String> = xnb.content.try_into()?;
+        let entries: IndexMap<String, String> = xnb.content.try_into()?;
         let mut fishes = IndexMap::new();
         for (k, v) in &entries {
             let (_, fish) =
-                Self::parse(&v).map_err(|e| anyhow!("Error parsing fish \"{}\": {}", v, e))?;
+                Self::parse(v).map_err(|e| anyhow!("Error parsing fish \"{}\": {}", v, e))?;
 
-            fishes.insert(*k, fish);
+            fishes.insert(k.clone(), fish);
         }
 
         Ok(fishes)
@@ -124,8 +124,8 @@ impl Fish {
 
     pub fn name(&self) -> &str {
         match self {
-            Self::Line { name, .. } => &name,
-            Self::Trap { name, .. } => &name,
+            Self::Line { name, .. } => name,
+            Self::Trap { name, .. } => name,
         }
     }
 

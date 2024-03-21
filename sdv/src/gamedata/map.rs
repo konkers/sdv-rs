@@ -4,15 +4,16 @@ use xnb::Xnb;
 
 use crate::common::Size;
 
-fn xnb_props_to_hash_map(
-    props: &Vec<xnb::value::map::Property>,
-) -> Result<HashMap<String, String>> {
+fn xnb_props_to_hash_map(props: &[xnb::value::map::Property]) -> Result<HashMap<String, String>> {
     props
         .iter()
         .map(|prop| {
             let xnb::Value::String(value) = &prop.val else {
-				return Err(anyhow!("Encountered non-string property value {:?}", prop.val));
-			    };
+                return Err(anyhow!(
+                    "Encountered non-string property value {:?}",
+                    prop.val
+                ));
+            };
 
             Ok((prop.key.clone(), value.clone()))
         })
@@ -151,14 +152,14 @@ impl Map {
         let xnb = Xnb::new(&mut r).context("Can't parse object xnb file")?;
 
         let xnb::Value::Map(map) = xnb.content else {
-		bail!("{} is not a map", file.as_ref().to_string_lossy());
-	};
+            bail!("{} is not a map", file.as_ref().to_string_lossy());
+        };
 
         let properties = xnb_props_to_hash_map(&map.properties)?;
         let tile_sheets = map
             .tile_sheets
             .iter()
-            .map(|sheet| TileSheet::from_xnb_data(sheet))
+            .map(TileSheet::from_xnb_data)
             .collect::<Result<Vec<TileSheet>>>()?;
 
         let tile_sheet_map: HashMap<_, _> = tile_sheets

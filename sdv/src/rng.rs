@@ -61,7 +61,7 @@ impl Rng {
         Rng {
             next: 0,
             next_p: 21,
-            seed_array: seed_array,
+            seed_array,
         }
     }
 
@@ -113,13 +113,13 @@ impl Rng {
         let mut result = result as f64;
         result += (i32::MAX - 1) as f64;
         result /= ((2 * (i32::MAX as u32)) - 1) as f64;
-        return result;
+        result
     }
 
     /// Pull the next i32 sample from the [Rng]
     ///
     /// Returned values will be between 0 and i32::MAX.
-    pub fn next(&mut self) -> i32 {
+    pub fn next_i32(&mut self) -> i32 {
         self.internal_sample()
     }
 
@@ -170,10 +170,10 @@ mod tests {
     fn next() {
         // Test values were generated using MouseyPound's JS implementation.
         let mut rng = Rng::new(34 + 327349652 / 2);
-        assert_eq!(rng.next(), 1903971056);
-        assert_eq!(rng.next(), 2089011827);
-        assert_eq!(rng.next(), 539281092);
-        assert_eq!(rng.next(), 729551037);
+        assert_eq!(rng.next_i32(), 1903971056);
+        assert_eq!(rng.next_i32(), 2089011827);
+        assert_eq!(rng.next_i32(), 539281092);
+        assert_eq!(rng.next_i32(), 729551037);
     }
 
     #[test]

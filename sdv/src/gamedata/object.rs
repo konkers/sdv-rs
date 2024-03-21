@@ -1,136 +1,19 @@
 use anyhow::{anyhow, Context, Result};
 use indexmap::IndexMap;
-use nom::{
-    branch::alt,
-    bytes::complete::tag,
-    combinator::{map_res, opt, value},
-    IResult,
-};
-use num_traits::FromPrimitive;
 use std::{convert::TryInto, fs::File, io::BufReader, path::Path};
 use xnb::Xnb;
 
-use super::{decimal, field, field_value, remaining_fields, sub_field_value};
-use crate::common::{ObjectCategory, ObjectType};
+pub use xnb::value::ObjectData as Object;
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct Object {
-    pub id: i32,
-    pub name: String,
-    pub price: i32,
-    pub edibility: i32,
-    pub ty: ObjectType,
-    pub category: Option<ObjectCategory>,
-    pub display_name: String,
-    pub desc: String,
-    pub extra: Vec<String>,
-}
+pub fn load_objects<P: AsRef<Path>>(file: P) -> Result<IndexMap<String, Object>> {
+    let file = file.as_ref();
+    let f = File::open(file).context(anyhow!("Can't open object file {}", file.display()))?;
+    let mut r = BufReader::new(f);
+    let xnb =
+        Xnb::new(&mut r).context(anyhow!("Can't parse object xnb file {}", file.display()))?;
 
-impl Object {
-    pub fn load<P: AsRef<Path>>(file: P) -> Result<IndexMap<i32, Self>> {
-        let f = File::open(file).context("Can't open object file")?;
-        let mut r = BufReader::new(f);
-        let xnb = Xnb::new(&mut r).context("Can't parse object xnb file")?;
-
-        let entries: IndexMap<i32, String> = xnb.content.try_into()?;
-        let mut objects = IndexMap::new();
-
-        for (key, value) in &entries {
-            let (_, object) = Self::parse(*key, &value)
-                .map_err(|e| anyhow!("Error parsing object \"{}\": {}", value, e))?;
-            objects.insert(*key, object);
-        }
-        Ok(objects)
-    }
-
-    fn parse_type(i: &str) -> IResult<&str, ObjectType> {
-        sub_field_value(alt((
-            value(ObjectType::Asdf, tag("asdf")),
-            value(ObjectType::Arch, tag("Arch")),
-            value(ObjectType::Basic, tag("Basic")),
-            value(ObjectType::Cooking, tag("Cooking")),
-            value(ObjectType::Crafting, tag("Crafting")),
-            value(ObjectType::Fish, tag("Fish")),
-            value(ObjectType::Minerals, tag("Minerals")),
-            value(ObjectType::Quest, tag("Quest")),
-            value(ObjectType::Ring, tag("Ring")),
-            value(ObjectType::Seeds, tag("Seeds")),
-        )))(i)
-    }
-
-    fn parse_category(i: &str) -> IResult<&str, Option<ObjectCategory>> {
-        opt(map_res(sub_field_value(decimal), |category: i32| {
-            ObjectCategory::from_i32(category).ok_or(anyhow!("Unknown category {}", category))
-        }))(i)
-    }
-
-    fn parse(id: i32, i: &str) -> IResult<&str, Self> {
-        let (i, name) = field(i)?;
-        let (i, price) = field_value(decimal)(i)?;
-        let (i, edibility) = field_value(decimal)(i)?;
-        let (i, ty) = Self::parse_type(i)?;
-        let (i, category) = Self::parse_category(i)?;
-        let (i, display_name) = field(i)?;
-        let (i, desc) = field(i)?;
-
-        let (i, extra) = remaining_fields(i)?;
-
-        Ok((
-            i,
-            Object {
-                id,
-                name: name.to_string(),
-                price,
-                edibility,
-                ty,
-                category,
-                display_name: display_name.to_string(),
-                desc: desc.to_string(),
-                extra,
-            },
-        ))
-    }
+    xnb.content.try_into()
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn fish_object() {
-        assert_eq!(
-        Object::parse(
-            775,
-            "Glacierfish/1000/10/Fish -4/Glacierfish/Builds a nest on the underside of glaciers./Day^Winter").unwrap(),
-        ("", Object{
-            id: 775,
-            name: "Glacierfish".to_string(),
-            price: 1000,
-            edibility: 10,
-            ty: ObjectType::Fish,
-            category: Some(ObjectCategory::Fish),
-            display_name: "Glacierfish".to_string(),
-            desc: "Builds a nest on the underside of glaciers.".to_string(),
-            extra: vec!["Day^Winter".to_string()],
-        }));
-    }
-
-    #[test]
-    fn ring_object() {
-        assert_eq!(
-            Object::parse(
-                518,
-                "Small Magnet Ring/100/-300/Ring/Small Magnet Ring/Slightly increases your radius for collecting items.").unwrap(),
-            ("", Object{
-                id: 518,
-                name: "Small Magnet Ring".to_string(),
-                price: 100,
-                edibility: -300,
-                ty: ObjectType::Ring,
-                category: None,
-                display_name: "Small Magnet Ring".to_string(),
-                desc: "Slightly increases your radius for collecting items.".to_string(),
-                extra: Vec::new(),
-            }));
-    }
-}
+mod tests {}

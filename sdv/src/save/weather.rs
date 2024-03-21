@@ -1,13 +1,13 @@
 use num_derive::FromPrimitive;
-use num_traits::FromPrimitive;
 use roxmltree::Node;
 use std::convert::TryInto;
+use strum::EnumString;
 
 use super::{Finder, SaveError, SaveResult};
 
-#[derive(Clone, Eq, Debug, FromPrimitive, Hash, PartialEq)]
+#[derive(Clone, Debug, EnumString, Eq, FromPrimitive, Hash, PartialEq)]
 pub enum Weather {
-    Sunny = 0,
+    Sun = 0,
     Rain = 1,
     Windy = 2,
     Lightning = 3,
@@ -29,12 +29,17 @@ impl LocationWeather {
     pub(crate) fn from_node<'a, 'input: 'a>(
         node: Node<'a, 'input>,
     ) -> SaveResult<'a, 'input, Self> {
-        let weather_for_tomorrow_raw = node.child("weatherForTomorrow").child("int").try_into()?;
+        let weather_for_tomorrow_raw: String = node
+            .child("weatherForTomorrow")
+            .child("string")
+            .try_into()?;
         let weather_for_tomorrow =
-            Weather::from_i32(weather_for_tomorrow_raw).ok_or(SaveError::Generic {
-                message: format!("Unknown weather {}", weather_for_tomorrow_raw),
-                node: node,
-            })?;
+            weather_for_tomorrow_raw
+                .parse::<Weather>()
+                .map_err(|e| SaveError::Generic {
+                    message: format!("Unknown weather {}: {e}", weather_for_tomorrow_raw),
+                    node,
+                })?;
         let is_raining = node.child("isRaining").child("boolean").try_into()?;
         let is_snowing = node.child("isSnowing").child("boolean").try_into()?;
         let is_lightning = node.child("isLightning").child("boolean").try_into()?;
@@ -58,7 +63,7 @@ impl LocationWeather {
         } else if self.is_raining {
             Weather::Snow
         } else {
-            Weather::Sunny
+            Weather::Sun
         }
     }
 

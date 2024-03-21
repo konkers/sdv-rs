@@ -73,7 +73,7 @@ impl<'a, 'input: 'a> NodeFinder<'a, 'input> {
                 Some(n) => Self::Node(n),
                 None => Self::Err(SaveError::ChildNotFound {
                     name: name.to_string(),
-                    node: node,
+                    node,
                 }),
             };
         }
@@ -109,7 +109,7 @@ impl<'a, 'input: 'a> NodeFinder<'a, 'input> {
                         text,
                         e
                     ),
-                    node: node,
+                    node,
                 })
             }
             Self::Err(e) => Err(e.clone()),
@@ -205,7 +205,7 @@ where
         })
         .collect();
 
-    Ok(vals?)
+    vals
 }
 
 pub(crate) fn array_of_i32<'a, 'input>(node: Node<'a, 'input>) -> SaveResult<'a, 'input, Vec<i32>> {
@@ -250,7 +250,7 @@ where
         })
         .collect();
 
-    Ok(vals?)
+    vals
 }
 
 #[derive(Clone, EnumString, Eq, Debug, FromPrimitive, Hash, PartialEq)]
@@ -313,7 +313,7 @@ pub struct Player {
     pub name: String,
     pub stats: Stats,
     pub deepest_mine_level: i32,
-    pub fish_caught: IndexMap<i32, FishCaught>,
+    pub fish_caught: IndexMap<String, FishCaught>,
     pub professions: IndexSet<Profession>,
     pub experience: IndexMap<Skill, i32>,
     pub items: Vec<Object>,
@@ -326,7 +326,7 @@ impl Player {
         let deepest_mine_level = node.child("deepestMineLevel").try_into()?;
 
         let fish_caught_node = node.child("fishCaught").try_into()?;
-        let fish_caught_i32 = map_from_node(fish_caught_node, "int", array_of_i32)?;
+        let fish_caught_i32 = map_from_node(fish_caught_node, "string", array_of_i32)?;
         let mut fish_caught = IndexMap::new();
         for (id, values) in fish_caught_i32 {
             if values.len() != 2 {
@@ -365,13 +365,7 @@ impl Player {
         let experience = xp?
             .iter()
             .enumerate()
-            .filter_map(|(index, value)| {
-                if let Some(skill) = Skill::from_i32(index as i32) {
-                    Some((skill, *value))
-                } else {
-                    None
-                }
-            })
+            .filter_map(|(index, value)| Skill::from_i32(index as i32).map(|skill| (skill, *value)))
             .collect();
 
         let items = match node.child("items").node().ok() {
@@ -432,8 +426,9 @@ impl SaveGame {
     pub fn from_reader(r: &mut impl Read) -> Result<Self> {
         // save files have a unicode <U+FEFF> at the start whcih is 3 bytes.
         //  Drop that.
-        let mut buf = [0; 3];
-        r.read_exact(&mut buf).unwrap();
+
+        // let mut buf = [0; 3];
+        // r.read_exact(&mut buf).unwrap();
 
         let contents = std::io::read_to_string(r)?;
         let doc = roxmltree::Document::parse(&contents)?;
@@ -462,7 +457,7 @@ impl SaveGame {
 
         let weather = map_from_node(
             save.child("locationWeather").try_into()?,
-            "LocationContext",
+            "string",
             |node| LocationWeather::from_node(node.child("LocationWeather").try_into()?),
         )?;
 

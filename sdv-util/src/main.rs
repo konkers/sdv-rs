@@ -1,13 +1,11 @@
+use ::crossterm::style::Color::*;
 use anyhow::{anyhow, Result};
-use crossterm::style::Color::*;
-use indexmap::IndexSet;
 use itertools::Itertools;
-use num_traits::FromPrimitive;
 use sdv::{
     common::{ObjectCategory, Point},
     gamedata::GameData,
-    predictor::{Geode, GeodeType},
-    save::{self, Object, Profession},
+    //predictor::{Geode, GeodeType},
+    save::Object,
     SaveGame,
 };
 use std::{
@@ -18,8 +16,7 @@ use std::{
     path::PathBuf,
 };
 use structopt::StructOpt;
-use strum::IntoEnumIterator;
-use termimad::{minimad::TextTemplate, *};
+use termimad::{rgb, Alignment, MadSkin};
 
 mod render_map;
 
@@ -79,7 +76,7 @@ enum Opt {
     Bundles(GameAndSaveOpt),
     Dump(DumpOpt),
     Fish(GameAndSaveOpt),
-    Geodes(GameAndSaveOpt),
+    //  Geodes(GameAndSaveOpt),
     Items(ItemsOpt),
     RenderMap(RenderMapOpt),
     Todo(GameAndSaveOpt),
@@ -99,7 +96,7 @@ fn cmd_fish(opt: &GameAndSaveOpt) -> Result<()> {
     for (_id, fish) in data
         .fish
         .iter()
-        .filter(|(id, _fish)| !save.player.fish_caught.contains_key(*id))
+        .filter(|(id, _fish)| !save.player.fish_caught.contains_key(&format!("(O){id}")))
         .filter(|(_id, fish)| fish.in_season(&save.current_season))
     {
         println!("  {}", &fish.name());
@@ -160,7 +157,7 @@ fn get_all_items(save: &SaveGame, all: bool) -> Vec<Item> {
                 }
             } else if all {
                 items.push(Item {
-                    object: object,
+                    object,
                     location: ItemLocation::Map(name.clone(), *pos),
                 });
             }
@@ -181,7 +178,7 @@ fn cmd_items(opt: &ItemsOpt) -> Result<()> {
     let mut items: Vec<_> = items
         .iter()
         .fold(HashMap::new(), |mut acc, item| {
-            let mut entry = acc
+            let entry = acc
                 .entry((item.object.name.clone(), item.object.quality))
                 .or_insert((0, Vec::new(), item.object.clone(), 0));
             entry.0 += item.object.stack_price(&save.player.professions);
@@ -226,6 +223,7 @@ fn cmd_items(opt: &ItemsOpt) -> Result<()> {
                 4 => " (*i*)",
                 _ => "",
             };
+            #[allow(unstable_name_collisions)]
             let locations: String = item
                 .1
                  .1
@@ -255,152 +253,152 @@ fn cmd_items(opt: &ItemsOpt) -> Result<()> {
     Ok(())
 }
 
-fn optimize_geodes(
-    geode_count: &mut Vec<(GeodeType, i32)>,
-    predictions: &HashMap<GeodeType, Vec<save::Object>>,
-    professions: &IndexSet<Profession>,
-    level: usize,
-    num_predictions: usize,
-    memo: &mut HashMap<Vec<(GeodeType, i32)>, (i32, Vec<(GeodeType, i32, i32)>)>,
-) -> (i32, Vec<(GeodeType, i32, i32)>) {
-    if level >= num_predictions {
-        return (0, Vec::with_capacity(num_predictions));
-    }
+// fn optimize_geodes(
+//     geode_count: &mut Vec<(GeodeType, i32)>,
+//     predictions: &HashMap<GeodeType, Vec<save::Object>>,
+//     professions: &IndexSet<Profession>,
+//     level: usize,
+//     num_predictions: usize,
+//     memo: &mut HashMap<Vec<(GeodeType, i32)>, (i32, Vec<(GeodeType, i32, i32)>)>,
+// ) -> (i32, Vec<(GeodeType, i32, i32)>) {
+//     if level >= num_predictions {
+//         return (0, Vec::with_capacity(num_predictions));
+//     }
 
-    if let Some(result) = memo.get(geode_count) {
-        return (result.0, result.1.clone());
-    }
+//     if let Some(result) = memo.get(geode_count) {
+//         return (result.0, result.1.clone());
+//     }
 
-    let chain = GeodeType::iter()
-        .enumerate()
-        .filter_map(|(i, ty)| {
-            if geode_count[i].1 <= 0 {
-                None
-            } else {
-                geode_count[i].1 -= 1;
-                let reward = &predictions.get(&ty).unwrap()[level];
-                let value = reward.stack_price(professions)
-                    - 25
-                    - match ty {
-                        GeodeType::Geode => 50,
-                        GeodeType::FrozenGeode => 100,
-                        GeodeType::MagmaGeode => 150,
-                        GeodeType::OmniGeode => 0,
-                        GeodeType::ArtifactTrove => 0,
-                        GeodeType::GoldenCoconut => 0,
-                    };
-                let mut new_chain = optimize_geodes(
-                    geode_count,
-                    predictions,
-                    professions,
-                    level + 1,
-                    num_predictions,
-                    memo,
-                );
-                geode_count[i].1 += 1;
+//     let chain = GeodeType::iter()
+//         .enumerate()
+//         .filter_map(|(i, ty)| {
+//             if geode_count[i].1 <= 0 {
+//                 None
+//             } else {
+//                 geode_count[i].1 -= 1;
+//                 let reward = &predictions.get(&ty).unwrap()[level];
+//                 let value = reward.stack_price(professions)
+//                     - 25
+//                     - match ty {
+//                         GeodeType::Geode => 50,
+//                         GeodeType::FrozenGeode => 100,
+//                         GeodeType::MagmaGeode => 150,
+//                         GeodeType::OmniGeode => 0,
+//                         GeodeType::ArtifactTrove => 0,
+//                         GeodeType::GoldenCoconut => 0,
+//                     };
+//                 let mut new_chain = optimize_geodes(
+//                     geode_count,
+//                     predictions,
+//                     professions,
+//                     level + 1,
+//                     num_predictions,
+//                     memo,
+//                 );
+//                 geode_count[i].1 += 1;
 
-                new_chain.0 += value;
-                new_chain.1.push((ty, reward.id(), value));
-                Some(new_chain)
-            }
-        })
-        .max_by(|a, b| a.0.cmp(&b.0))
-        .unwrap();
+//                 new_chain.0 += value;
+//                 new_chain.1.push((ty, reward.id(), value));
+//                 Some(new_chain)
+//             }
+//         })
+//         .max_by(|a, b| a.0.cmp(&b.0))
+//         .unwrap();
 
-    memo.insert(geode_count.clone(), chain.clone());
+//     memo.insert(geode_count.clone(), chain.clone());
 
-    chain
-}
+//     chain
+// }
 
-fn cmd_geodes(opt: &GameAndSaveOpt) -> Result<()> {
-    let data = GameData::load(&opt.content.game_content)?;
-    let f = File::open(&opt.file)?;
-    let mut r = BufReader::new(f);
-    let save = SaveGame::from_reader(&mut r)?;
+// fn cmd_geodes(opt: &GameAndSaveOpt) -> Result<()> {
+//     let data = GameData::load(&opt.content.game_content)?;
+//     let f = File::open(&opt.file)?;
+//     let mut r = BufReader::new(f);
+//     let save = SaveGame::from_reader(&mut r)?;
 
-    let geodes_map = get_all_items(&save, false)
-        .iter()
-        .filter(|i| i.object.is_geode())
-        .fold(HashMap::new(), |mut map, item| {
-            *map.entry(GeodeType::from_i32(item.object.id()).unwrap())
-                .or_insert(0) += item.object.stack;
-            map
-        });
+//     let geodes_map = get_all_items(&save, false)
+//         .iter()
+//         .filter(|i| i.object.is_geode())
+//         .fold(HashMap::new(), |mut map, item| {
+//             *map.entry(GeodeType::from_i32(item.object.id()).unwrap())
+//                 .or_insert(0) += item.object.stack;
+//             map
+//         });
 
-    let mut geodes: Vec<(GeodeType, i32)> = GeodeType::iter()
-        .map(|t| (t, *geodes_map.get(&t).unwrap_or(&0)))
-        .collect();
+//     let mut geodes: Vec<(GeodeType, i32)> = GeodeType::iter()
+//         .map(|t| (t, *geodes_map.get(&t).unwrap_or(&0)))
+//         .collect();
 
-    let num_geodes = geodes.iter().fold(0, |count, (_id, num)| count + num);
+//     let num_geodes = geodes.iter().fold(0, |count, (_id, num)| count + num);
 
-    let predictions = Geode::predict(num_geodes, 1, &data, &save)?;
-    let chain = optimize_geodes(
-        &mut geodes,
-        &predictions,
-        &save.player.professions,
-        0,
-        num_geodes as usize,
-        &mut HashMap::new(),
-    );
+//     let predictions = Geode::predict(num_geodes, 1, &data, &save)?;
+//     let chain = optimize_geodes(
+//         &mut geodes,
+//         &predictions,
+//         &save.player.professions,
+//         0,
+//         num_geodes as usize,
+//         &mut HashMap::new(),
+//     );
 
-    println!("chain value: {}", chain.0);
-    for (i, entry) in chain.1.iter().rev().enumerate() {
-        let object = data.get_object(entry.1).unwrap();
-        println!(" {} {:?} -> {} {}", i + 1, entry.0, object.name, entry.2);
-    }
+//     println!("chain value: {}", chain.0);
+//     for (i, entry) in chain.1.iter().rev().enumerate() {
+//         let object = data.get_object(entry.1).unwrap();
+//         println!(" {} {:?} -> {} {}", i + 1, entry.0, object.name, entry.2);
+//     }
 
-    let prediction = Geode::predict(10, 1, &data, &save)?;
-    let mut skin = MadSkin::default();
-    skin.set_headers_fg(rgb(255, 187, 0));
-    skin.bold.set_fg(Yellow);
-    skin.italic.set_fgbg(Magenta, rgb(30, 30, 40));
-    skin.paragraph.align = Alignment::Center;
-    skin.table.align = Alignment::Center;
-    let text_template = TextTemplate::from(
-        r#"
-    |:-:|:-|:-|:-|:-|:-|:-|
-    |**N**|**Geode**|**Frozen Geode**|**Magma Geode**|**Omni Geode**|**Artifact Trove**|**Golden Coconut**|
-    |:-:|:-|:-|:-|:-|:-|:-|
-    ${rows
-    |**${i}**|${geode}|${frozen_geode}|${magma_geode}|${omni_geode}|${artifact_trove}|${golden_coconut}|
-    }
-    |:-:|:-|:-|:-|:-|:-|:-|
-    "#,
-    );
+//     let prediction = Geode::predict(10, 1, &data, &save)?;
+//     let mut skin = MadSkin::default();
+//     skin.set_headers_fg(rgb(255, 187, 0));
+//     skin.bold.set_fg(Yellow);
+//     skin.italic.set_fgbg(Magenta, rgb(30, 30, 40));
+//     skin.paragraph.align = Alignment::Center;
+//     skin.table.align = Alignment::Center;
+//     let text_template = TextTemplate::from(
+//         r#"
+//     |:-:|:-|:-|:-|:-|:-|:-|
+//     |**N**|**Geode**|**Frozen Geode**|**Magma Geode**|**Omni Geode**|**Artifact Trove**|**Golden Coconut**|
+//     |:-:|:-|:-|:-|:-|:-|:-|
+//     ${rows
+//     |**${i}**|${geode}|${frozen_geode}|${magma_geode}|${omni_geode}|${artifact_trove}|${golden_coconut}|
+//     }
+//     |:-:|:-|:-|:-|:-|:-|:-|
+//     "#,
+//     );
 
-    let mut expander = text_template.expander();
-    let indexes: Vec<String> = (0..10).map(|i| format!("{}", i + 1)).collect();
-    for i in 0..10 {
-        expander
-            .sub("rows")
-            .set("i", &indexes[i])
-            .set("geode", &prediction.get(&GeodeType::Geode).unwrap()[i].name)
-            .set(
-                "frozen_geode",
-                &prediction.get(&GeodeType::FrozenGeode).unwrap()[i].name,
-            )
-            .set(
-                "magma_geode",
-                &prediction.get(&GeodeType::MagmaGeode).unwrap()[i].name,
-            )
-            .set(
-                "omni_geode",
-                &prediction.get(&GeodeType::OmniGeode).unwrap()[i].name,
-            )
-            .set(
-                "artifact_trove",
-                &prediction.get(&GeodeType::ArtifactTrove).unwrap()[i].name,
-            )
-            .set(
-                "golden_coconut",
-                &prediction.get(&GeodeType::GoldenCoconut).unwrap()[i].name,
-            );
-    }
+//     let mut expander = text_template.expander();
+//     let indexes: Vec<String> = (0..10).map(|i| format!("{}", i + 1)).collect();
+//     for i in 0..10 {
+//         expander
+//             .sub("rows")
+//             .set("i", &indexes[i])
+//             .set("geode", &prediction.get(&GeodeType::Geode).unwrap()[i].name)
+//             .set(
+//                 "frozen_geode",
+//                 &prediction.get(&GeodeType::FrozenGeode).unwrap()[i].name,
+//             )
+//             .set(
+//                 "magma_geode",
+//                 &prediction.get(&GeodeType::MagmaGeode).unwrap()[i].name,
+//             )
+//             .set(
+//                 "omni_geode",
+//                 &prediction.get(&GeodeType::OmniGeode).unwrap()[i].name,
+//             )
+//             .set(
+//                 "artifact_trove",
+//                 &prediction.get(&GeodeType::ArtifactTrove).unwrap()[i].name,
+//             )
+//             .set(
+//                 "golden_coconut",
+//                 &prediction.get(&GeodeType::GoldenCoconut).unwrap()[i].name,
+//             );
+//     }
 
-    skin.print_expander(expander);
+//     skin.print_expander(expander);
 
-    Ok(())
-}
+//     Ok(())
+// }
 
 fn cmd_bundles(opt: &GameAndSaveOpt) -> Result<()> {
     let data = GameData::load(&opt.content.game_content)?;
@@ -417,17 +415,15 @@ fn cmd_bundles(opt: &GameAndSaveOpt) -> Result<()> {
 
         let mut completed = 0;
         for (index, item) in bundle.requirements.iter().enumerate() {
-            if let Ok(_) = data.get_object(item.id) {
-                if bundle_state[index] {
-                    completed += 1;
-                }
+            if data.get_object(&format!("{}", item.id)).is_ok() && bundle_state[index] {
+                completed += 1;
             }
         }
 
         println!("{}: {}/{}", bundle.name, completed, bundle.num_items_needed);
 
         for (index, item) in bundle.requirements.iter().enumerate() {
-            if let Ok(object) = data.get_object(item.id) {
+            if let Ok(object) = data.get_object(&format!("{}", item.id)) {
                 let found = bundle_state[index];
                 println!("  {}: {}", object.name, found);
             }
@@ -490,9 +486,9 @@ fn cmd_dump_objects(opt: &GameContentLoc) -> Result<()> {
         println!("{}: {:?}", id, &object);
     }
 
-    let cat_set: HashSet<Option<ObjectCategory>> =
+    let cat_set: HashSet<ObjectCategory> =
         HashSet::from_iter(data.objects.iter().map(|o| o.1.category.clone()));
-    let cats: Vec<Option<ObjectCategory>> = cat_set.iter().cloned().collect();
+    let cats: Vec<ObjectCategory> = cat_set.iter().cloned().collect();
 
     println!("types: {:?}", &cats);
 
@@ -511,10 +507,10 @@ fn cmd_dump_save(opt: &SaveFileLoc) -> Result<()> {
 
 fn cmd_dump(opt: &DumpOpt) -> Result<()> {
     match opt {
-        DumpOpt::Bundles(o) => cmd_dump_bundles(&o),
-        DumpOpt::Fish(o) => cmd_dump_fish(&o),
-        DumpOpt::Objects(o) => cmd_dump_objects(&o),
-        DumpOpt::Save(o) => cmd_dump_save(&o),
+        DumpOpt::Bundles(o) => cmd_dump_bundles(o),
+        DumpOpt::Fish(o) => cmd_dump_fish(o),
+        DumpOpt::Objects(o) => cmd_dump_objects(o),
+        DumpOpt::Save(o) => cmd_dump_save(o),
     }
 }
 
@@ -525,7 +521,7 @@ fn main() -> Result<()> {
         Opt::Dump(o) => cmd_dump(&o)?,
         Opt::Bundles(o) => cmd_bundles(&o)?,
         Opt::Fish(o) => cmd_fish(&o)?,
-        Opt::Geodes(o) => cmd_geodes(&o)?,
+        //Opt::Geodes(o) => cmd_geodes(&o)?,
         Opt::Items(o) => cmd_items(&o)?,
         Opt::RenderMap(o) => cmd_render_map(&o)?,
         Opt::Todo(o) => cmd_todo(&o)?,

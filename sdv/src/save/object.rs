@@ -82,9 +82,10 @@ impl Object {
             current_sheet_index: node.child("currentParentSheetIndex").try_into().ok(),
             special_item: node.child("specialItem").try_into()?,
             special_variable: node.child("SpecialVariable").try_into()?,
-            display_name: node.child("DisplayName").try_into()?,
-            name2: node.child("Name").try_into()?,
-            stack: node.child("Stack").try_into()?,
+            //TODO: display_name: node.child("DisplayName").try_into()?,
+            display_name: String::new(), //node.child("DisplayName").try_into()?,
+            name2: node.child("name").try_into()?,
+            stack: node.child("stack").try_into()?,
             tile_location: node.child("tileLocation").try_into().ok(),
             owner: node.child("owner").try_into().ok(),
             ty: node.child("type").try_into().unwrap_or(ObjectType::Unknown),
@@ -154,8 +155,7 @@ impl Object {
         // The Blacksmith profession only applies to specific items
         let parent_sheet_index = self.parent_sheet_index.unwrap_or(-1);
         if professions.contains(&Profession::Blacksmith)
-            && ((parent_sheet_index >= 334 && parent_sheet_index <= 337)
-                || parent_sheet_index == 910)
+            && ((334..=337).contains(&parent_sheet_index) || parent_sheet_index == 910)
         {
             return 1.5;
         }
@@ -241,10 +241,10 @@ impl Object {
 
     pub fn from_gamedata(object: &gamedata::Object, quantity: i32) -> Object {
         Object {
-            category: object.category.clone().unwrap_or_default(),
+            category: object.category.clone(),
             name: object.name.clone(),
             name2: object.name.clone(),
-            parent_sheet_index: Some(object.id),
+            parent_sheet_index: Some(object.sprite_index),
             display_name: object.display_name.clone(),
             ty: object.ty.clone(),
             stack: quantity,

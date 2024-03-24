@@ -1,8 +1,8 @@
 use anyhow::{anyhow, Context, Result};
 use indexmap::IndexMap;
-use num_derive::FromPrimitive;
+
 use serde::Deserialize;
-use serde_repr::Deserialize_repr;
+
 use std::{
     fs::File,
     io::{BufReader, Read},
@@ -10,39 +10,12 @@ use std::{
 };
 use xnb::{xnb_name, XnbType};
 
-use crate::common::{ObjectCategory, ObjectType};
-
-#[derive(Clone, Debug, Deserialize_repr, FromPrimitive, PartialEq, XnbType)]
-#[repr(i32)]
-pub enum ModificationType {
-    Add = 0,
-    Subtract,
-    Multiply,
-    Divide,
-    Set,
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq, XnbType)]
-#[xnb_name("StardewValley.GameData.QuantityModifier")]
-pub struct QuantityModifier {
-    pub id: String,
-    pub condition: String,
-    pub modification: ModificationType,
-    pub amount: f32,
-    pub random_amount: Option<Vec<f32>>,
-}
-
-#[derive(Clone, Debug, Deserialize_repr, FromPrimitive, PartialEq, XnbType)]
-#[repr(i32)]
-pub enum QuantityModifierMode {
-    Stack = 0,
-    Minimum,
-    Maximum,
-}
+use crate::common::{ObjectCategory, ObjectType, QuantityModifier, QuantityModifierMode};
 
 #[derive(Clone, Debug, Deserialize, PartialEq, XnbType)]
 #[xnb_name("StardewValley.GameData.Objects.ObjectGeodeDropData")]
 pub struct ObjectGeodeDropData {
+    // Fields from GenericSpawnItemData
     pub id: String,
     pub item_id: Option<String>,
     pub random_item_id: Option<Vec<String>>,
@@ -60,7 +33,11 @@ pub struct ObjectGeodeDropData {
     pub quality_modifier_mode: QuantityModifierMode,
     pub mod_data: Option<IndexMap<String, String>>,
     pub per_item_condition: Option<String>,
+
+    // Fields from GenericSpawnItemDataWithCondition
     pub condition: Option<String>,
+
+    // Fields from ObjectGeodeDropData
     pub chance: f64,
     pub set_flag_on_pickup: Option<String>,
     pub precedence: i32,

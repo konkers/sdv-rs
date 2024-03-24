@@ -420,6 +420,7 @@ pub struct SaveGame {
     pub year: i32,
     pub weather: IndexMap<String, LocationWeather>,
     pub unique_id_for_this_game: i32,
+    pub daily_luck: f32,
 }
 
 impl SaveGame {
@@ -462,6 +463,7 @@ impl SaveGame {
         )?;
 
         let unique_id_for_this_game = save.child("uniqueIDForThisGame").try_into()?;
+        let daily_luck = save.child("dailyLuck").try_into()?;
 
         Ok(SaveGame {
             player,
@@ -471,6 +473,7 @@ impl SaveGame {
             year,
             weather,
             unique_id_for_this_game,
+            daily_luck,
         })
     }
 
@@ -503,7 +506,7 @@ mod tests {
 
     #[test]
     fn load_save() {
-        let f = File::open("test-data/Serenity_268346611").unwrap();
+        let f = File::open("test-data/ChimkinHill_370550379").unwrap();
         let mut r = BufReader::new(f);
         let save = SaveGame::from_reader(&mut r).unwrap();
         println!("{:?}", save);

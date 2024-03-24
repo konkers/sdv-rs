@@ -1,7 +1,3 @@
 [workspace]
-members = [
-  "external/xnb-rs",
-  "external/xnb-util",
-  "sdv",
-  "sdv-util",
-]
+resolver = "2"
+members = ["sdv", "sdv-util"]

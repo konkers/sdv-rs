@@ -18,9 +18,9 @@ use std::{
 use structopt::StructOpt;
 use termimad::{rgb, Alignment, MadSkin};
 
-mod render_map;
-
-use render_map::cmd_render_map;
+// Needs to be updated for serde.
+// mod render_map;
+// use render_map::cmd_render_map;
 
 #[derive(Debug, StructOpt)]
 struct GameContentLoc {
@@ -64,6 +64,7 @@ struct ItemsOpt {
 }
 
 #[derive(Debug, StructOpt)]
+#[allow(unused)]
 struct RenderMapOpt {
     #[structopt(flatten)]
     content: GameContentLoc,
@@ -76,9 +77,10 @@ enum Opt {
     Bundles(GameAndSaveOpt),
     Dump(DumpOpt),
     Fish(GameAndSaveOpt),
+    Food(GameAndSaveOpt),
     //  Geodes(GameAndSaveOpt),
     Items(ItemsOpt),
-    RenderMap(RenderMapOpt),
+    //RenderMap(RenderMapOpt),
     Todo(GameAndSaveOpt),
 }
 
@@ -165,6 +167,83 @@ fn get_all_items(save: &SaveGame, all: bool) -> Vec<Item> {
     }
 
     items
+}
+
+fn cmd_food(opt: &GameAndSaveOpt) -> Result<()> {
+    let _data = GameData::load(&opt.content.game_content)?;
+    let f = File::open(&opt.file)?;
+    let mut r = BufReader::new(f);
+    let save = SaveGame::from_reader(&mut r)?;
+
+    let items = get_all_items(&save, false);
+
+    let mut items: Vec<_> = items
+        .iter()
+        .filter(|item| item.object.edibility.unwrap_or(0) > 0)
+        .fold(HashMap::new(), |mut acc, item| {
+            let entry = acc
+                .entry((item.object.name.clone(), item.object.quality))
+                .or_insert((
+                    item.object.energy() as f32
+                        / item.object.adjusted_price(&save.player.professions) as f32,
+                    Vec::new(),
+                    item.object.clone(),
+                    0,
+                ));
+            //entry.0 = item.object.adjusted_price(&save.player.professions);
+            entry.1.push(item.location.clone());
+            entry.3 += item.object.stack;
+
+            acc
+        })
+        .into_iter()
+        .collect();
+
+    items.sort_by(|a, b| a.1 .0.partial_cmp(&b.1 .0).unwrap());
+
+    let mut skin = MadSkin::default();
+    skin.set_headers_fg(rgb(255, 187, 0));
+    skin.bold.set_fg(Yellow);
+    skin.italic.set_fgbg(Magenta, rgb(30, 30, 40));
+    skin.paragraph.align = Alignment::Center;
+    skin.table.align = Alignment::Center;
+
+    let mut text = "|:-:|:-:|:-:|\n".to_string();
+    text.push_str("|**Name**|**Qty**|**Energy**|**Price**|**Ratio**|**Location**|\n");
+    text.push_str("|:-|:-:|:-:|-\n");
+
+    for item in items {
+        let quality = item.1 .2.quality.unwrap_or(0);
+        let quality_txt = match quality {
+            1 => " (s)",
+            2 => " (**g**)",
+            4 => " (*i*)",
+            _ => "",
+        };
+        #[allow(unstable_name_collisions)]
+        let locations: String = item
+            .1
+             .1
+            .iter()
+            .map(|loc| format!("{}", loc))
+            .intersperse(", ".to_string())
+            .collect();
+
+        let ratio = item.1 .0;
+        text.push_str(&format!(
+            "|{}{} |{} | {} | {} | {:0.02} |{} |\n",
+            item.1 .2.name,
+            quality_txt,
+            item.1 .3,
+            item.1 .2.energy(),
+            item.1 .2.adjusted_price(&save.player.professions),
+            ratio,
+            locations,
+        ));
+    }
+    text.push_str("|-\n");
+    println!("{}", skin.term_text(&text));
+    Ok(())
 }
 
 fn cmd_items(opt: &ItemsOpt) -> Result<()> {
@@ -442,6 +521,7 @@ fn cmd_todo(opt: &GameAndSaveOpt) -> Result<()> {
         "Today is {:?} {} year {}.",
         &save.current_season, &save.day_of_month, &save.year
     );
+    println!("Today's Luck: {}", &save.daily_luck,);
     let default_weather = save.get_weather("Default");
     let island_weather = save.get_weather("Island");
     println!("Today's weather:");
@@ -521,9 +601,10 @@ fn main() -> Result<()> {
         Opt::Dump(o) => cmd_dump(&o)?,
         Opt::Bundles(o) => cmd_bundles(&o)?,
         Opt::Fish(o) => cmd_fish(&o)?,
+        Opt::Food(o) => cmd_food(&o)?,
         //Opt::Geodes(o) => cmd_geodes(&o)?,
         Opt::Items(o) => cmd_items(&o)?,
-        Opt::RenderMap(o) => cmd_render_map(&o)?,
+        //Opt::RenderMap(o) => cmd_render_map(&o)?,
         Opt::Todo(o) => cmd_todo(&o)?,
     }
 

@@ -1,24 +1,23 @@
 use anyhow::{anyhow, bail, Context, Result};
 use std::{collections::HashMap, fs::File, io::BufReader, path::Path};
-use xnb::Xnb;
 
 use crate::common::Size;
 
-fn xnb_props_to_hash_map(props: &[xnb::value::map::Property]) -> Result<HashMap<String, String>> {
-    props
-        .iter()
-        .map(|prop| {
-            let xnb::Value::String(value) = &prop.val else {
-                return Err(anyhow!(
-                    "Encountered non-string property value {:?}",
-                    prop.val
-                ));
-            };
+// fn xnb_props_to_hash_map(props: &[xnb::value::map::Property]) -> Result<HashMap<String, String>> {
+//     props
+//         .iter()
+//         .map(|prop| {
+//             let xnb::Value::String(value) = &prop.val else {
+//                 return Err(anyhow!(
+//                     "Encountered non-string property value {:?}",
+//                     prop.val
+//                 ));
+//             };
 
-            Ok((prop.key.clone(), value.clone()))
-        })
-        .collect()
-}
+//             Ok((prop.key.clone(), value.clone()))
+//         })
+//         .collect()
+// }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct TileSheet {

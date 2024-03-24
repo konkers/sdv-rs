@@ -1,3 +1,0 @@
-[submodule "external/xnb-rs"]
-	path = external/xnb-rs
-	url = https://github.com/konkers/xnb-rs

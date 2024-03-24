@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{anyhow, Error, Result};
 use indexmap::IndexMap;
 use nom::{branch::alt, bytes::complete::tag, combinator::value, IResult};
 use num_derive::FromPrimitive;
@@ -197,6 +197,39 @@ impl Season {
         })?;
 
         Ok(season)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum DayOfWeek {
+    Sunday = 0,
+    Monday,
+    Tuesday,
+    Wednesday,
+    Thursday,
+    Friday,
+    Saturday,
+}
+
+impl TryFrom<i32> for DayOfWeek {
+    type Error = Error;
+
+    fn try_from(value: i32) -> Result<Self> {
+        if !(1..=28).contains(&value) {
+            return Err(anyhow!("invalid day of month {value}"));
+        }
+
+        let day = match (value as u32) % 7 {
+            0 => Self::Sunday,
+            1 => Self::Monday,
+            2 => Self::Tuesday,
+            3 => Self::Wednesday,
+            4 => Self::Thursday,
+            5 => Self::Friday,
+            6 => Self::Saturday,
+            _ => unreachable!(),
+        };
+        Ok(day)
     }
 }
 

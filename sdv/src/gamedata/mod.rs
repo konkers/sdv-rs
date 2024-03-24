@@ -10,22 +10,21 @@ use nom::{
     sequence::{pair, preceded, terminated, tuple},
     IResult, Parser,
 };
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-};
+use std::{collections::HashMap, path::Path};
 
 pub mod bundle;
 pub mod fish;
-pub mod map;
 pub mod object;
-pub mod texture;
+// Needs to be updated for Serde
+// pub mod map;
+// pub mod texture;
 
 pub use bundle::Bundle;
 pub use fish::Fish;
-pub use map::{Map, Tile};
-pub use object::Object;
-pub use texture::Texture;
+pub use object::ObjectData;
+// Needs to be updated for Serde
+// pub use map::{Map, Tile};
+// pub use texture::Texture;
 
 fn field_seperator(input: &str) -> IResult<&str, ()> {
     let (i, _) = opt(tag("/"))(input)?;
@@ -120,9 +119,8 @@ fn remaining_fields<'a>(i: &'a str) -> IResult<&'a str, Vec<String>> {
 pub struct GameData {
     pub bundles: IndexMap<i32, Bundle>,
     pub fish: IndexMap<String, Fish>,
-    pub objects: IndexMap<String, Object>,
+    pub objects: IndexMap<String, ObjectData>,
     object_name_map: HashMap<String, String>,
-    game_content_dir: PathBuf,
 }
 
 impl GameData {
@@ -153,17 +151,16 @@ impl GameData {
             fish,
             objects,
             object_name_map,
-            game_content_dir,
         })
     }
 
-    pub fn get_object(&self, id: &str) -> Result<&Object> {
+    pub fn get_object(&self, id: &str) -> Result<&ObjectData> {
         self.objects
             .get(id)
             .ok_or(anyhow!("Can't find game object {}", id))
     }
 
-    pub fn get_object_by_name(&self, name: &str) -> Result<&Object> {
+    pub fn get_object_by_name(&self, name: &str) -> Result<&ObjectData> {
         let id = self
             .object_name_map
             .get(name)
@@ -171,17 +168,17 @@ impl GameData {
         self.get_object(id)
     }
 
-    pub fn load_map<P: AsRef<Path>>(&self, path: P) -> Result<Map> {
-        let mut map_path = self.game_content_dir.clone();
-        map_path.push(path);
+    // pub fn load_map<P: AsRef<Path>>(&self, path: P) -> Result<Map> {
+    //     let mut map_path = self.game_content_dir.clone();
+    //     map_path.push(path);
 
-        Map::load(map_path)
-    }
+    //     Map::load(map_path)
+    // }
 
-    pub fn load_texture<P: AsRef<Path>>(&self, path: P) -> Result<Texture> {
-        let mut texture_path = self.game_content_dir.clone();
-        texture_path.push(path);
+    // pub fn load_texture<P: AsRef<Path>>(&self, path: P) -> Result<Texture> {
+    //     let mut texture_path = self.game_content_dir.clone();
+    //     texture_path.push(path);
 
-        Texture::load(texture_path)
-    }
+    //     Texture::load(texture_path)
+    // }
 }

@@ -9,7 +9,7 @@ use super::{Finder, SaveError, SaveResult};
 pub enum Weather {
     Sun = 0,
     Rain = 1,
-    Windy = 2,
+    Wind = 2,
     Lightning = 3,
     Festival = 4,
     Snow = 5,
@@ -57,7 +57,7 @@ impl LocationWeather {
         if self.is_snowing {
             Weather::Snow
         } else if self.is_debris {
-            Weather::Windy
+            Weather::Wind
         } else if self.is_lightning {
             Weather::Lightning
         } else if self.is_raining {

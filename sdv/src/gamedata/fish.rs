@@ -1,8 +1,11 @@
 use anyhow::{anyhow, Context, Result};
 use indexmap::IndexMap;
 use nom::{branch::alt, bytes::complete::tag, combinator::value, multi::many1, IResult};
-use std::{convert::TryInto, fs::File, io::BufReader, path::Path};
-use xnb::Xnb;
+use std::{
+    fs::File,
+    io::{BufReader, Read},
+    path::Path,
+};
 
 use super::{decimal, field, field_value, float, sub_field_value};
 use crate::common::{Season, Weather};
@@ -108,9 +111,10 @@ impl Fish {
     pub fn load<P: AsRef<Path>>(file: P) -> Result<IndexMap<String, Self>> {
         let f = File::open(file).context("Can't open fish file")?;
         let mut r = BufReader::new(f);
-        let xnb = Xnb::new(&mut r).context("Can't parse fish xnb file")?;
+        let mut data: Vec<u8> = Vec::new();
+        r.read_to_end(&mut data)?;
 
-        let entries: IndexMap<String, String> = xnb.content.try_into()?;
+        let entries: IndexMap<String, String> = xnb::from_bytes(&data)?;
         let mut fishes = IndexMap::new();
         for (k, v) in &entries {
             let (_, fish) =

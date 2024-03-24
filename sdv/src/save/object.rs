@@ -226,7 +226,7 @@ impl Object {
         }
     }
 
-    pub fn stack_price(&self, professions: &IndexSet<Profession>) -> i32 {
+    pub fn adjusted_price(&self, professions: &IndexSet<Profession>) -> i32 {
         let mult = self.price_multiplier(professions) as f64;
         let mult = mult
             * match self.quality.unwrap_or(0) {
@@ -235,11 +235,23 @@ impl Object {
                 4 => 2.0,
                 _ => 1.0,
             };
-        let price = (self.price.unwrap_or(0) * self.stack) as f64;
-        (price * mult) as i32
+        (self.price.unwrap_or(0) as f64 * mult) as i32
     }
 
-    pub fn from_gamedata(object: &gamedata::Object, quantity: i32) -> Object {
+    pub fn stack_price(&self, professions: &IndexSet<Profession>) -> i32 {
+        self.adjusted_price(professions) * self.stack
+    }
+
+    pub fn energy(&self) -> i32 {
+        (self.edibility.unwrap_or(0) as f32 * 2.5) as i32
+            + self.edibility.unwrap_or(0) * self.quality.unwrap_or(0)
+    }
+
+    pub fn health(&self) -> i32 {
+        (self.energy() as f32 * 0.45) as i32
+    }
+
+    pub fn from_gamedata(object: &gamedata::ObjectData, quantity: i32) -> Object {
         Object {
             category: object.category.clone(),
             name: object.name.clone(),

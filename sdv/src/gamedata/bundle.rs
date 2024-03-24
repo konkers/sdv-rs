@@ -7,8 +7,11 @@ use nom::{
     multi::many0,
     IResult,
 };
-use std::{convert::TryInto, fs::File, io::BufReader, path::Path};
-use xnb::Xnb;
+use std::{
+    fs::File,
+    io::{BufReader, Read},
+    path::Path,
+};
 
 use super::{decimal, field, field_value, sub_field_value};
 
@@ -62,9 +65,11 @@ impl Bundle {
     pub fn load<P: AsRef<Path>>(file: P) -> Result<IndexMap<i32, Self>> {
         let f = File::open(file).context("Can't open bundle file")?;
         let mut r = BufReader::new(f);
-        let xnb = Xnb::new(&mut r).context("Can't parse bundle xnb file")?;
+        let mut data: Vec<u8> = Vec::new();
+        r.read_to_end(&mut data)?;
+        //let xnb = Xnb::new(&mut r).context("Can't parse bundle xnb file")?;
 
-        let entries: IndexMap<String, String> = xnb.content.try_into()?;
+        let entries: IndexMap<String, String> = xnb::from_bytes(&data)?;
         let mut bundles = IndexMap::new();
 
         for (key, value) in &entries {

@@ -2,14 +2,16 @@ use ::crossterm::style::Color::*;
 use anyhow::{anyhow, Result};
 use itertools::Itertools;
 use sdv::{
-    common::{ObjectCategory, Point},
-    gamedata::GameData,
+    common::{DayOfWeek, ObjectCategory, Point},
+    gamedata::{GameData},
     //predictor::{Geode, GeodeType},
     save::Object,
     SaveGame,
 };
 use std::{
     collections::{HashMap, HashSet},
+    convert::TryFrom,
+    fmt::Write,
     fs::File,
     io::BufReader,
     iter::FromIterator,
@@ -83,6 +85,17 @@ enum Opt {
     Items(ItemsOpt),
     //RenderMap(RenderMapOpt),
     Todo(GameAndSaveOpt),
+}
+
+fn mad_skin() -> MadSkin {
+    let mut skin = MadSkin::default();
+    skin.set_headers_fg(rgb(255, 187, 0));
+    skin.bold.set_fg(Yellow);
+    skin.italic.set_fgbg(Magenta, rgb(30, 30, 40));
+    //skin.paragraph.align = Alignment::Center;
+    skin.table.align = Alignment::Center;
+
+    skin
 }
 
 fn cmd_fish(opt: &GameAndSaveOpt) -> Result<()> {
@@ -202,13 +215,6 @@ fn cmd_food(opt: &GameAndSaveOpt) -> Result<()> {
 
     items.sort_by(|a, b| a.1 .0.partial_cmp(&b.1 .0).unwrap());
 
-    let mut skin = MadSkin::default();
-    skin.set_headers_fg(rgb(255, 187, 0));
-    skin.bold.set_fg(Yellow);
-    skin.italic.set_fgbg(Magenta, rgb(30, 30, 40));
-    skin.paragraph.align = Alignment::Center;
-    skin.table.align = Alignment::Center;
-
     let mut text = "|:-:|:-:|:-:|\n".to_string();
     text.push_str("|**Name**|**Qty**|**Energy**|**Price**|**Ratio**|**Location**|\n");
     text.push_str("|:-|:-:|:-:|-\n");
@@ -243,7 +249,7 @@ fn cmd_food(opt: &GameAndSaveOpt) -> Result<()> {
         ));
     }
     text.push_str("|-\n");
-    println!("{}", skin.term_text(&text));
+    println!("{}", mad_skin().term_text(&text));
     Ok(())
 }
 
@@ -513,30 +519,65 @@ fn cmd_bundles(opt: &GameAndSaveOpt) -> Result<()> {
 }
 
 fn cmd_todo(opt: &GameAndSaveOpt) -> Result<()> {
-    let _data = GameData::load(&opt.content.game_content)?;
+    let data = GameData::load(&opt.content.game_content)?;
     let f = File::open(&opt.file)?;
     let mut r = BufReader::new(f);
     let save = SaveGame::from_reader(&mut r)?;
 
-    println!(
+    let season = &save.current_season;
+    let day = &save.day_of_month;
+
+    let mut text = String::new();
+
+    writeln!(
+        &mut text,
         "Today is {:?} {} year {}.",
         &save.current_season, &save.day_of_month, &save.year
-    );
-    println!("Today's Luck: {}", &save.daily_luck,);
-    let default_weather = save.get_weather("Default");
-    let island_weather = save.get_weather("Island");
-    println!("Today's weather:");
-    println!("  Farm: {:?}", default_weather.today());
-    println!("  Island: {:?}", island_weather.today());
-    println!("Tomorrow's weather:");
-    println!("  Farm: {:?}", default_weather.tomorrow());
-    println!("  Island: {:?}", island_weather.tomorrow());
+    )?;
 
-    println!("\nLevels:");
-    for (skill, (level, xp_to_go)) in save.player.levels() {
-        println!("  {}: {} ({} to next level)", skill, level, xp_to_go);
+    let birthday = data.characters.iter().find(|(_name, character)| {
+        let Some(birth_season) = &character.birth_season else {
+            return false;
+        };
+        birth_season == season && character.birthday == *day
+    });
+
+    if let Some((name, _character)) = birthday {
+        writeln!(&mut text, "   *It's {name}'s birthday today!*")?;
+    }
+    let day_of_week = DayOfWeek::try_from(*day)?;
+    if day_of_week == DayOfWeek::Wednesday || day_of_week == DayOfWeek::Sunday {
+        writeln!(&mut text, "   *Queen of Sauce is airing today!*")?;
     }
 
+    let luck_text = if save.daily_luck > 0.5 {
+        format!("*{}*", &save.daily_luck)
+    } else if save.daily_luck > 0.0 {
+        format!("**{}**", &save.daily_luck)
+    } else {
+        format!("{}", &save.daily_luck)
+    };
+    writeln!(&mut text, "Today's Luck: {}", luck_text)?;
+
+    let default_weather = save.get_weather("Default");
+    let island_weather = save.get_weather("Island");
+    writeln!(&mut text, "Today's weather:")?;
+    writeln!(&mut text, "  Farm: {:?}", default_weather.today())?;
+    writeln!(&mut text, "  Island: {:?}", island_weather.today())?;
+    writeln!(&mut text, "Tomorrow's weather:")?;
+    writeln!(&mut text, "  Farm: {:?}", default_weather.tomorrow())?;
+    writeln!(&mut text, "  Island: {:?}", island_weather.tomorrow())?;
+
+    writeln!(&mut text, "\nLevels:")?;
+    for (skill, (level, xp_to_go)) in save.player.levels() {
+        writeln!(
+            &mut text,
+            "  {}: {} ({} to next level)",
+            skill, level, xp_to_go
+        )?;
+    }
+
+    println!("{}", mad_skin().term_text(&text));
     Ok(())
 }
 

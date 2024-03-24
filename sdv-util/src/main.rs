@@ -46,6 +46,7 @@ struct SaveFileLoc {
 #[derive(Debug, StructOpt)]
 enum DumpOpt {
     Bundles(GameContentLoc),
+    Characters(GameContentLoc),
     Fish(GameContentLoc),
     Objects(GameContentLoc),
     Save(SaveFileLoc),
@@ -549,6 +550,16 @@ fn cmd_dump_bundles(opt: &GameContentLoc) -> Result<()> {
     Ok(())
 }
 
+fn cmd_dump_characters(opt: &GameContentLoc) -> Result<()> {
+    let data = GameData::load(&opt.game_content)?;
+
+    for character in &data.characters {
+        println!("{:?}", &character);
+    }
+
+    Ok(())
+}
+
 fn cmd_dump_fish(opt: &GameContentLoc) -> Result<()> {
     let data = GameData::load(&opt.game_content)?;
 
@@ -588,6 +599,7 @@ fn cmd_dump_save(opt: &SaveFileLoc) -> Result<()> {
 fn cmd_dump(opt: &DumpOpt) -> Result<()> {
     match opt {
         DumpOpt::Bundles(o) => cmd_dump_bundles(o),
+        DumpOpt::Characters(o) => cmd_dump_characters(o),
         DumpOpt::Fish(o) => cmd_dump_fish(o),
         DumpOpt::Objects(o) => cmd_dump_objects(o),
         DumpOpt::Save(o) => cmd_dump_save(o),
@@ -595,6 +607,8 @@ fn cmd_dump(opt: &DumpOpt) -> Result<()> {
 }
 
 fn main() -> Result<()> {
+    env_logger::init();
+
     let opt = Opt::from_args();
 
     match opt {

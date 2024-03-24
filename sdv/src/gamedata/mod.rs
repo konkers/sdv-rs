@@ -13,6 +13,7 @@ use nom::{
 use std::{collections::HashMap, path::Path};
 
 pub mod bundle;
+pub mod character;
 pub mod fish;
 pub mod object;
 // Needs to be updated for Serde
@@ -20,6 +21,7 @@ pub mod object;
 // pub mod texture;
 
 pub use bundle::Bundle;
+pub use character::CharacterData;
 pub use fish::Fish;
 pub use object::ObjectData;
 // Needs to be updated for Serde
@@ -120,6 +122,7 @@ pub struct GameData {
     pub bundles: IndexMap<i32, Bundle>,
     pub fish: IndexMap<String, Fish>,
     pub objects: IndexMap<String, ObjectData>,
+    pub characters: IndexMap<String, CharacterData>,
     object_name_map: HashMap<String, String>,
 }
 
@@ -128,6 +131,10 @@ impl GameData {
         let game_content_dir = game_content_dir.as_ref().to_path_buf();
         let mut data_dir = game_content_dir.clone();
         data_dir.push("Data");
+
+        let mut character_file = data_dir.clone();
+        character_file.push("Characters.xnb");
+        let characters = character::load_characters(&character_file)?;
 
         let mut bundle_file = data_dir.clone();
         bundle_file.push("Bundles.xnb");
@@ -150,6 +157,7 @@ impl GameData {
             bundles,
             fish,
             objects,
+            characters,
             object_name_map,
         })
     }

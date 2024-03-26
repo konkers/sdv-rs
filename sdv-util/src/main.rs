@@ -2,8 +2,8 @@ use ::crossterm::style::Color::*;
 use anyhow::{anyhow, Result};
 use itertools::Itertools;
 use sdv::{
-    common::{DayOfWeek, ObjectCategory, Point},
-    gamedata::{GameData},
+    common::{DayOfWeek, ObjectCategory, Point, Season},
+    gamedata::{GameData, ObjectTaste},
     //predictor::{Geode, GeodeType},
     save::Object,
     SaveGame,
@@ -51,6 +51,7 @@ enum DumpOpt {
     Characters(GameContentLoc),
     Fish(GameContentLoc),
     Objects(GameContentLoc),
+    NpcGiftTastes(GameContentLoc),
     Save(SaveFileLoc),
 }
 
@@ -130,7 +131,7 @@ fn cmd_fish(opt: &GameAndSaveOpt) -> Result<()> {
     Ok(())
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 enum ItemLocation {
     Player,
     Map(String, Point<i32>),
@@ -181,6 +182,39 @@ fn get_all_items(save: &SaveGame, all: bool) -> Vec<Item> {
     }
 
     items
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+struct ItemQuantityAndLocations {
+    quantity: usize,
+    locations: HashSet<ItemLocation>,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+struct ItemInfo {
+    id: String,
+    normal: ItemQuantityAndLocations,
+    iron: ItemQuantityAndLocations,
+    gold: ItemQuantityAndLocations,
+    irridium: ItemQuantityAndLocations,
+}
+
+fn aggregate_items(items: Vec<Item>) -> HashMap<String, ItemInfo> {
+    items.iter().fold(HashMap::new(), |mut acc, item| {
+        let info = acc.entry(item.object.name.clone()).or_default();
+        let quantity_and_locations = match item.object.quality {
+            Some(1) => &mut info.iron,
+            Some(2) => &mut info.gold,
+            Some(4) => &mut info.irridium,
+            _ => &mut info.normal,
+        };
+        quantity_and_locations.quantity += item.object.stack as usize;
+        quantity_and_locations
+            .locations
+            .insert(item.location.clone());
+        info.id = item.object.id.clone();
+        acc
+    })
 }
 
 fn cmd_food(opt: &GameAndSaveOpt) -> Result<()> {
@@ -524,10 +558,13 @@ fn cmd_todo(opt: &GameAndSaveOpt) -> Result<()> {
     let mut r = BufReader::new(f);
     let save = SaveGame::from_reader(&mut r)?;
 
-    let season = &save.current_season;
-    let day = &save.day_of_month;
+    let season = &Season::Fall; //&save.current_season;
+    let day = &13; //&save.day_of_month;
 
     let mut text = String::new();
+
+    let items = get_all_items(&save, false);
+    let aggregate_items = aggregate_items(items);
 
     writeln!(
         &mut text,
@@ -542,12 +579,46 @@ fn cmd_todo(opt: &GameAndSaveOpt) -> Result<()> {
         birth_season == season && character.birthday == *day
     });
 
-    if let Some((name, _character)) = birthday {
-        writeln!(&mut text, "   *It's {name}'s birthday today!*")?;
-    }
     let day_of_week = DayOfWeek::try_from(*day)?;
     if day_of_week == DayOfWeek::Wednesday || day_of_week == DayOfWeek::Sunday {
-        writeln!(&mut text, "   *Queen of Sauce is airing today!*")?;
+        writeln!(&mut text, "*Queen of Sauce is airing today!*")?;
+    }
+    if let Some((name, _character)) = birthday {
+        writeln!(&mut text, "*It's {name}'s birthday today!*")?;
+        let loved: Vec<_> = aggregate_items
+            .iter()
+            .filter_map(|(_, info)| {
+                let Ok(object) = data.get_object(&info.id) else {
+                    return None;
+                };
+                let Ok(taste) = data.lookup_npc_taste_for_object(name, object) else {
+                    return None;
+                };
+                if taste == ObjectTaste::Love {
+                    Some(object.name.clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
+        let liked: Vec<_> = aggregate_items
+            .iter()
+            .filter_map(|(_, info)| {
+                let Ok(object) = data.get_object(&info.id) else {
+                    return None;
+                };
+                let Ok(taste) = data.lookup_npc_taste_for_object(name, object) else {
+                    return None;
+                };
+                if taste == ObjectTaste::Like {
+                    Some(object.name.clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
+        writeln!(&mut text, "Love items you own: {loved:?}")?;
+        writeln!(&mut text, "Liked items you own: {liked:?}")?;
     }
 
     let luck_text = if save.daily_luck > 0.5 {
@@ -627,6 +698,16 @@ fn cmd_dump_objects(opt: &GameContentLoc) -> Result<()> {
     Ok(())
 }
 
+fn cmd_dump_npc_gift_tastes(opt: &GameContentLoc) -> Result<()> {
+    let data = GameData::load(&opt.game_content)?;
+
+    for (id, tastes) in &data.npc_gift_tastes {
+        println!("{}: {:?}", id, &tastes);
+    }
+
+    Ok(())
+}
+
 fn cmd_dump_save(opt: &SaveFileLoc) -> Result<()> {
     let f = File::open(&opt.file)?;
     let mut r = BufReader::new(f);
@@ -643,6 +724,7 @@ fn cmd_dump(opt: &DumpOpt) -> Result<()> {
         DumpOpt::Characters(o) => cmd_dump_characters(o),
         DumpOpt::Fish(o) => cmd_dump_fish(o),
         DumpOpt::Objects(o) => cmd_dump_objects(o),
+        DumpOpt::NpcGiftTastes(o) => cmd_dump_npc_gift_tastes(o),
         DumpOpt::Save(o) => cmd_dump_save(o),
     }
 }

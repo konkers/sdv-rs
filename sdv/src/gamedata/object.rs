@@ -75,6 +75,8 @@ pub struct ObjectBuffData {
 #[derive(Clone, Debug, Deserialize, PartialEq, XnbType)]
 #[xnb_name("StardewValley.GameData.Objects.ObjectData")]
 pub struct ObjectData {
+    #[serde(skip)]
+    pub id: String,
     pub name: String,
     pub display_name: String,
     pub description: String,
@@ -103,7 +105,14 @@ pub fn load_objects<P: AsRef<Path>>(file: P) -> Result<IndexMap<String, ObjectDa
     let mut data: Vec<u8> = Vec::new();
 
     r.read_to_end(&mut data)?;
-    xnb::from_bytes(&data)
+    let mut objects: IndexMap<String, ObjectData> = xnb::from_bytes(&data)?;
+
+    // Populate Object ID
+    objects
+        .iter_mut()
+        .for_each(|(id, object)| object.id = id.clone());
+
+    Ok(objects)
 }
 
 #[cfg(test)]

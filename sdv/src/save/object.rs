@@ -6,7 +6,7 @@ use roxmltree::Node;
 
 use super::{Finder, NodeFinder, Profession, SaveError, SaveResult};
 use crate::{
-    common::{ObjectCategory, ObjectId, ObjectType, Point, Rect},
+    common::{ObjectCategory, ObjectType, Point, Rect},
     gamedata,
 };
 
@@ -19,6 +19,7 @@ impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for ObjectType {
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Object {
+    pub id: String,
     pub is_lost: bool,
     pub category: ObjectCategory,
     pub has_been_in_inventory: bool,
@@ -73,6 +74,7 @@ impl Object {
         };
 
         Ok(Object {
+            id: node.child("itemId").try_into()?,
             is_lost: node.child("isLostItem").try_into()?,
             category: node.child("category").try_into()?,
             has_been_in_inventory: node.child("hasBeenInInventory").try_into()?,
@@ -267,17 +269,14 @@ impl Object {
         }
     }
 
-    pub fn id(&self) -> i32 {
-        self.parent_sheet_index.unwrap_or(0)
-    }
-
     pub fn is_geode(&self) -> bool {
-        let id = self.id();
-        id == ObjectId::Geode as i32
-            || id == ObjectId::FrozenGeode as i32
-            || id == ObjectId::MagmaGeode as i32
-            || id == ObjectId::OmniGeode as i32
-            || id == ObjectId::ArtifactTrove as i32
-            || id == ObjectId::GoldenCoconut as i32
+        todo!()
+        // let id = self.id();
+        // id == ObjectId::Geode as i32
+        //     || id == ObjectId::FrozenGeode as i32
+        //     || id == ObjectId::MagmaGeode as i32
+        //     || id == ObjectId::OmniGeode as i32
+        //     || id == ObjectId::ArtifactTrove as i32
+        //     || id == ObjectId::GoldenCoconut as i32
     }
 }

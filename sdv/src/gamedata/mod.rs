@@ -15,6 +15,7 @@ use std::{collections::HashMap, path::Path};
 pub mod bundle;
 pub mod character;
 pub mod fish;
+pub mod npc_gift_tastes;
 pub mod object;
 // Needs to be updated for Serde
 // pub mod map;
@@ -23,10 +24,22 @@ pub mod object;
 pub use bundle::Bundle;
 pub use character::CharacterData;
 pub use fish::Fish;
+pub use npc_gift_tastes::NpcGiftTastes;
 pub use object::ObjectData;
+
+
 // Needs to be updated for Serde
 // pub use map::{Map, Tile};
 // pub use texture::Texture;
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ObjectTaste {
+    Love,
+    Like,
+    Neutral,
+    Dislike,
+    Hate,
+}
 
 fn field_seperator(input: &str) -> IResult<&str, ()> {
     let (i, _) = opt(tag("/"))(input)?;
@@ -91,7 +104,7 @@ where
 }
 
 fn sub_field(i: &str) -> IResult<&str, &str> {
-    let (i, value) = recognize(many0(is_not(" /")))(i)?;
+    let (i, value) = recognize(many1(is_not(" /")))(i)?;
     let (i, _) = opt(sub_field_seperator)(i)?;
     Ok((i, value))
 }
@@ -101,7 +114,7 @@ where
     G: FnMut(&'a str) -> IResult<&'a str, O2>,
 {
     move |input: &str| {
-        let (i, o1) = sub_field.parse(input)?;
+        let (i, o1) = sub_field(input)?;
         let (_, value) = f(o1)?;
 
         Ok((i, value))
@@ -123,6 +136,7 @@ pub struct GameData {
     pub fish: IndexMap<String, Fish>,
     pub objects: IndexMap<String, ObjectData>,
     pub characters: IndexMap<String, CharacterData>,
+    pub npc_gift_tastes: IndexMap<String, NpcGiftTastes>,
     object_name_map: HashMap<String, String>,
 }
 
@@ -148,6 +162,10 @@ impl GameData {
         object_file.push("Objects.xnb");
         let objects = object::load_objects(&object_file)?;
 
+        let mut npc_gift_tastes_file = data_dir.clone();
+        npc_gift_tastes_file.push("NPCGiftTastes.xnb");
+        let npc_gift_tastes = NpcGiftTastes::load(&npc_gift_tastes_file)?;
+
         let object_name_map = objects
             .iter()
             .map(|(id, object)| (object.name.clone(), id.clone()))
@@ -159,6 +177,7 @@ impl GameData {
             objects,
             characters,
             object_name_map,
+            npc_gift_tastes,
         })
     }
 
@@ -189,4 +208,75 @@ impl GameData {
 
     //     Texture::load(texture_path)
     // }
+
+    pub fn lookup_npc_taste_for_object(
+        &self,
+        npc: &String,
+        object: &ObjectData,
+    ) -> Result<ObjectTaste> {
+        let mut taste = ObjectTaste::Neutral;
+        let mut has_universal_neutral_id = false;
+
+        let npc_tastes = self
+            .npc_gift_tastes
+            .get(npc)
+            .ok_or_else(|| anyhow!("can't find gift taste data for {npc}"))?;
+        let universal_tastes = self
+            .npc_gift_tastes
+            .get("Universal")
+            .ok_or_else(|| anyhow!("can't find universal gift taste data"))?;
+
+        if universal_tastes.love.has_category(&object.category) {
+            taste = ObjectTaste::Love;
+        } else if universal_tastes.hate.has_category(&object.category) {
+            taste = ObjectTaste::Hate;
+        } else if universal_tastes.like.has_category(&object.category) {
+            taste = ObjectTaste::Like;
+        } else if universal_tastes.dislike.has_category(&object.category) {
+            taste = ObjectTaste::Dislike;
+        }
+
+        if universal_tastes.love.has_item(&object.id) {
+            taste = ObjectTaste::Love;
+        } else if universal_tastes.hate.has_item(&object.id) {
+            taste = ObjectTaste::Hate;
+        } else if universal_tastes.like.has_item(&object.id) {
+            taste = ObjectTaste::Like;
+        } else if universal_tastes.dislike.has_item(&object.id) {
+            taste = ObjectTaste::Dislike;
+        } else if universal_tastes.neutral.has_item(&object.id) {
+            taste = ObjectTaste::Neutral;
+            has_universal_neutral_id = true;
+        }
+
+        if taste == ObjectTaste::Neutral && !has_universal_neutral_id {
+            if object.edibility > -300 && object.edibility < 0 {
+                taste = ObjectTaste::Hate;
+            } else if object.price < 20 {
+                taste = ObjectTaste::Dislike;
+            }
+        }
+
+        if npc_tastes.love.has_item(&object.id) || npc_tastes.love.has_category(&object.category) {
+            taste = ObjectTaste::Love;
+        } else if npc_tastes.hate.has_item(&object.id)
+            || npc_tastes.hate.has_category(&object.category)
+        {
+            taste = ObjectTaste::Hate;
+        } else if npc_tastes.like.has_item(&object.id)
+            || npc_tastes.like.has_category(&object.category)
+        {
+            taste = ObjectTaste::Like;
+        } else if npc_tastes.dislike.has_item(&object.id)
+            || npc_tastes.like.has_category(&object.category)
+        {
+            taste = ObjectTaste::Dislike;
+        } else if npc_tastes.neutral.has_item(&object.id)
+            || npc_tastes.neutral.has_category(&object.category)
+        {
+            taste = ObjectTaste::Neutral;
+        }
+
+        Ok(taste)
+    }
 }

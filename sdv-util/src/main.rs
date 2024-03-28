@@ -583,6 +583,9 @@ fn cmd_todo(opt: &GameAndSaveOpt) -> Result<()> {
     if day_of_week == DayOfWeek::Wednesday || day_of_week == DayOfWeek::Sunday {
         writeln!(&mut text, "*Queen of Sauce is airing today!*")?;
     }
+    if day_of_week == DayOfWeek::Friday || day_of_week == DayOfWeek::Sunday {
+        writeln!(&mut text, "*Traveling cart is here!*")?;
+    }
     if let Some((name, _character)) = birthday {
         writeln!(&mut text, "*It's {name}'s birthday today!*")?;
         let loved: Vec<_> = aggregate_items

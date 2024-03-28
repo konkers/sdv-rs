@@ -2,7 +2,7 @@ use ::crossterm::style::Color::*;
 use anyhow::{anyhow, Result};
 use itertools::Itertools;
 use sdv::{
-    common::{DayOfWeek, ObjectCategory, Point, Season},
+    common::{DayOfWeek, ObjectCategory, Point},
     gamedata::{GameData, ObjectTaste},
     //predictor::{Geode, GeodeType},
     save::Object,
@@ -558,8 +558,8 @@ fn cmd_todo(opt: &GameAndSaveOpt) -> Result<()> {
     let mut r = BufReader::new(f);
     let save = SaveGame::from_reader(&mut r)?;
 
-    let season = &Season::Fall; //&save.current_season;
-    let day = &13; //&save.day_of_month;
+    let season = &save.current_season;
+    let day = &save.day_of_month;
 
     let mut text = String::new();
 

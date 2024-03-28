@@ -25,10 +25,49 @@ use termimad::{rgb, Alignment, MadSkin};
 // use render_map::cmd_render_map;
 
 #[derive(Debug, StructOpt)]
+#[cfg(windows)]
+struct GameContentLoc {
+    /// Path to Stardew Valley's Content directory
+    #[structopt(long, parse(from_os_str))]
+    game_content: Option<PathBuf>,
+}
+
+#[cfg(not(windows))]
+#[derive(Debug, StructOpt)]
 struct GameContentLoc {
     /// Path to Stardew Valley's Content directory
     #[structopt(long, parse(from_os_str))]
     game_content: PathBuf,
+}
+
+impl GameContentLoc {
+    #[cfg(windows)]
+    fn get(&self) -> Result<PathBuf> {
+        use winreg::{enums::HKEY_LOCAL_MACHINE, RegKey};
+
+        if let Some(path) = &self.game_content {
+            return Ok(path.clone());
+        }
+        let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+        let steam = hklm.open_subkey("SOFTWARE\\WOW6432Node\\Valve\\Steam")?;
+        let steam_path: String = steam.get_value("InstallPath")?;
+        let path: PathBuf = [
+            &steam_path,
+            "steamapps",
+            "common",
+            "Stardew Valley",
+            "Content",
+        ]
+        .iter()
+        .collect();
+
+        Ok(path)
+    }
+
+    #[cfg(not(windows))]
+    fn get(&self) -> Result<PathBuf> {
+        Ok(self.game_content.clone())
+    }
 }
 
 #[derive(Debug, StructOpt)]
@@ -100,7 +139,7 @@ fn mad_skin() -> MadSkin {
 }
 
 fn cmd_fish(opt: &GameAndSaveOpt) -> Result<()> {
-    let data = GameData::load(&opt.content.game_content)?;
+    let data = GameData::load(opt.content.get()?)?;
     let f = File::open(&opt.file)?;
     let mut r = BufReader::new(f);
     let save = SaveGame::from_reader(&mut r)?;
@@ -218,7 +257,7 @@ fn aggregate_items(items: Vec<Item>) -> HashMap<String, ItemInfo> {
 }
 
 fn cmd_food(opt: &GameAndSaveOpt) -> Result<()> {
-    let _data = GameData::load(&opt.content.game_content)?;
+    let _data = GameData::load(opt.content.get()?)?;
     let f = File::open(&opt.file)?;
     let mut r = BufReader::new(f);
     let save = SaveGame::from_reader(&mut r)?;
@@ -288,7 +327,7 @@ fn cmd_food(opt: &GameAndSaveOpt) -> Result<()> {
 }
 
 fn cmd_items(opt: &ItemsOpt) -> Result<()> {
-    let _data = GameData::load(&opt.loc.content.game_content)?;
+    let _data = GameData::load(opt.loc.content.get()?)?;
     let f = File::open(&opt.loc.file)?;
     let mut r = BufReader::new(f);
     let save = SaveGame::from_reader(&mut r)?;
@@ -521,7 +560,7 @@ fn cmd_items(opt: &ItemsOpt) -> Result<()> {
 // }
 
 fn cmd_bundles(opt: &GameAndSaveOpt) -> Result<()> {
-    let data = GameData::load(&opt.content.game_content)?;
+    let data = GameData::load(opt.content.get()?)?;
 
     let f = File::open(&opt.file)?;
     let mut r = BufReader::new(f);
@@ -553,7 +592,7 @@ fn cmd_bundles(opt: &GameAndSaveOpt) -> Result<()> {
 }
 
 fn cmd_todo(opt: &GameAndSaveOpt) -> Result<()> {
-    let data = GameData::load(&opt.content.game_content)?;
+    let data = GameData::load(opt.content.get()?)?;
     let f = File::open(&opt.file)?;
     let mut r = BufReader::new(f);
     let save = SaveGame::from_reader(&mut r)?;
@@ -656,7 +695,7 @@ fn cmd_todo(opt: &GameAndSaveOpt) -> Result<()> {
 }
 
 fn cmd_dump_bundles(opt: &GameContentLoc) -> Result<()> {
-    let data = GameData::load(&opt.game_content)?;
+    let data = GameData::load(opt.get()?)?;
 
     for bundle in &data.bundles {
         println!("{:?}", &bundle);
@@ -666,7 +705,7 @@ fn cmd_dump_bundles(opt: &GameContentLoc) -> Result<()> {
 }
 
 fn cmd_dump_characters(opt: &GameContentLoc) -> Result<()> {
-    let data = GameData::load(&opt.game_content)?;
+    let data = GameData::load(opt.get()?)?;
 
     for character in &data.characters {
         println!("{:?}", &character);
@@ -676,7 +715,7 @@ fn cmd_dump_characters(opt: &GameContentLoc) -> Result<()> {
 }
 
 fn cmd_dump_fish(opt: &GameContentLoc) -> Result<()> {
-    let data = GameData::load(&opt.game_content)?;
+    let data = GameData::load(opt.get()?)?;
 
     for (id, fish) in &data.fish {
         println!("{}: {:?}", id, &fish);
@@ -686,7 +725,7 @@ fn cmd_dump_fish(opt: &GameContentLoc) -> Result<()> {
 }
 
 fn cmd_dump_objects(opt: &GameContentLoc) -> Result<()> {
-    let data = GameData::load(&opt.game_content)?;
+    let data = GameData::load(opt.get()?)?;
 
     for (id, object) in &data.objects {
         println!("{}: {:?}", id, &object);
@@ -702,7 +741,7 @@ fn cmd_dump_objects(opt: &GameContentLoc) -> Result<()> {
 }
 
 fn cmd_dump_npc_gift_tastes(opt: &GameContentLoc) -> Result<()> {
-    let data = GameData::load(&opt.game_content)?;
+    let data = GameData::load(opt.get()?)?;
 
     for (id, tastes) in &data.npc_gift_tastes {
         println!("{}: {:?}", id, &tastes);

@@ -289,10 +289,10 @@ pub enum QuantityModifierMode {
     Minimum,
     Maximum,
 }
+
 #[derive(Clone, Debug, Deserialize, PartialEq, XnbType)]
-#[xnb_name("StardewValley.GameData.GenericSpawnItemDataWithCondition")]
-pub struct GenericSpawnItemDataWithCondition {
-    // Fields from GenericSpawnItemData
+#[xnb_name("StardewValley.GameData.GenericSpawnItemData")]
+pub struct GenericSpawnItemData {
     pub id: String,
     pub item_id: Option<String>,
     pub random_item_id: Option<Vec<String>>,
@@ -310,8 +310,14 @@ pub struct GenericSpawnItemDataWithCondition {
     pub quality_modifier_mode: QuantityModifierMode,
     pub mod_data: Option<IndexMap<String, String>>,
     pub per_item_condition: Option<String>,
+}
 
-    // Fields from GenericSpawnItemDataWithCondition
+#[derive(Clone, Debug, Deserialize, PartialEq, XnbType)]
+#[xnb_name("StardewValley.GameData.GenericSpawnItemDataWithCondition")]
+pub struct GenericSpawnItemDataWithCondition {
+    #[serde(flatten)]
+    pub parent: GenericSpawnItemData,
+
     pub condition: Option<String>,
 }
 

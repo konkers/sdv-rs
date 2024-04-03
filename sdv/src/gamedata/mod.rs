@@ -12,9 +12,11 @@ use nom::{
 };
 use std::{collections::HashMap, path::Path};
 
+
 pub mod bundle;
 pub mod character;
 pub mod fish;
+pub mod location;
 pub mod npc_gift_tastes;
 pub mod object;
 // Needs to be updated for Serde
@@ -27,6 +29,7 @@ pub use fish::Fish;
 pub use npc_gift_tastes::NpcGiftTastes;
 pub use object::ObjectData;
 
+use self::location::LocationData;
 
 // Needs to be updated for Serde
 // pub use map::{Map, Tile};
@@ -131,12 +134,14 @@ fn remaining_fields<'a>(i: &'a str) -> IResult<&'a str, Vec<String>> {
 
     Ok((i, fields.iter().map(|s| s.to_string()).collect()))
 }
+
 pub struct GameData {
     pub bundles: IndexMap<i32, Bundle>,
     pub fish: IndexMap<String, Fish>,
     pub objects: IndexMap<String, ObjectData>,
     pub characters: IndexMap<String, CharacterData>,
     pub npc_gift_tastes: IndexMap<String, NpcGiftTastes>,
+    pub locations: IndexMap<String, LocationData>,
     object_name_map: HashMap<String, String>,
 }
 
@@ -146,17 +151,21 @@ impl GameData {
         let mut data_dir = game_content_dir.clone();
         data_dir.push("Data");
 
-        let mut character_file = data_dir.clone();
-        character_file.push("Characters.xnb");
-        let characters = character::load_characters(&character_file)?;
-
         let mut bundle_file = data_dir.clone();
         bundle_file.push("Bundles.xnb");
         let bundles = Bundle::load(&bundle_file)?;
 
+        let mut character_file = data_dir.clone();
+        character_file.push("Characters.xnb");
+        let characters = character::load_characters(&character_file)?;
+
         let mut fish_file = data_dir.clone();
         fish_file.push("Fish.xnb");
         let fish = Fish::load(&fish_file)?;
+
+        let mut locations_file = data_dir.clone();
+        locations_file.push("Locations.xnb");
+        let locations = location::load_locations(&locations_file)?;
 
         let mut object_file = data_dir.clone();
         object_file.push("Objects.xnb");
@@ -176,8 +185,9 @@ impl GameData {
             fish,
             objects,
             characters,
-            object_name_map,
             npc_gift_tastes,
+            locations,
+            object_name_map,
         })
     }
 

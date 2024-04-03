@@ -89,6 +89,7 @@ enum DumpOpt {
     Bundles(GameContentLoc),
     Characters(GameContentLoc),
     Fish(GameContentLoc),
+    Locations(GameContentLoc),
     Objects(GameContentLoc),
     NpcGiftTastes(GameContentLoc),
     Save(SaveFileLoc),
@@ -254,6 +255,26 @@ fn aggregate_items(items: Vec<Item>) -> HashMap<String, ItemInfo> {
         info.id = item.object.id.clone();
         acc
     })
+}
+
+fn calculate_fish_locations(data: &GameData) -> Result<HashMap<String, Vec<String>>> {
+    let mut fish_locations = HashMap::<String, Vec<String>>::new();
+    for (location_name, location) in &data.locations {
+        let Some(fishes) = &location.fish else {
+            continue;
+        };
+
+        for fish in fishes {
+            match fish_locations.get_mut(&fish.parent.parent.id) {
+                Some(locations) => locations.push(location_name.clone()),
+                None => {
+                    fish_locations
+                        .insert(fish.parent.parent.id.clone(), vec![location_name.clone()]);
+                }
+            }
+        }
+    }
+    Ok(fish_locations)
 }
 
 fn cmd_food(opt: &GameAndSaveOpt) -> Result<()> {
@@ -721,6 +742,20 @@ fn cmd_dump_fish(opt: &GameContentLoc) -> Result<()> {
         println!("{}: {:?}", id, &fish);
     }
 
+    for fish in calculate_fish_locations(&data)? {
+        println!("{:?}", fish);
+    }
+
+    Ok(())
+}
+
+fn cmd_dump_locations(opt: &GameContentLoc) -> Result<()> {
+    let data = GameData::load(opt.get()?)?;
+
+    for location in &data.locations {
+        println!("{:?}", location);
+    }
+
     Ok(())
 }
 
@@ -765,6 +800,7 @@ fn cmd_dump(opt: &DumpOpt) -> Result<()> {
         DumpOpt::Bundles(o) => cmd_dump_bundles(o),
         DumpOpt::Characters(o) => cmd_dump_characters(o),
         DumpOpt::Fish(o) => cmd_dump_fish(o),
+        DumpOpt::Locations(o) => cmd_dump_locations(o),
         DumpOpt::Objects(o) => cmd_dump_objects(o),
         DumpOpt::NpcGiftTastes(o) => cmd_dump_npc_gift_tastes(o),
         DumpOpt::Save(o) => cmd_dump_save(o),

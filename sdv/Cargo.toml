@@ -16,4 +16,4 @@ roxmltree = "0.19.0"
 serde = { version = "1.0", features = ["derive"] }
 strum = { version = "0.24", features = ["derive"] }
 serde_repr = "0.1.18"
-xnb = { git = "https://github.com/konkers/xnb-rs", rev = "2ceebc4ea40f2b61d615f9e85fc350419260c6ab" }
+xnb = { git = "https://github.com/konkers/xnb-rs", rev = "43acddb2b2556e07a5726d445c2fea622ca01f20" }

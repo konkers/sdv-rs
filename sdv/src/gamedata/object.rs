@@ -10,32 +10,15 @@ use std::{
 };
 use xnb::{xnb_name, XnbType};
 
-use crate::common::{ObjectCategory, ObjectType, QuantityModifier, QuantityModifierMode};
+use crate::common::{
+    GenericSpawnItemDataWithCondition, ObjectCategory, ObjectType,
+};
 
 #[derive(Clone, Debug, Deserialize, PartialEq, XnbType)]
 #[xnb_name("StardewValley.GameData.Objects.ObjectGeodeDropData")]
 pub struct ObjectGeodeDropData {
-    // Fields from GenericSpawnItemData
-    pub id: String,
-    pub item_id: Option<String>,
-    pub random_item_id: Option<Vec<String>>,
-    pub max_items: Option<i32>,
-    pub min_stack: i32,
-    pub max_stack: i32,
-    pub quality: i32,
-    pub internal_name: Option<String>,
-    pub display_name: Option<String>,
-    pub tool_upgrade_level: i32,
-    pub is_recipe: bool,
-    pub stack_modifiers: Option<Vec<QuantityModifier>>,
-    pub stack_modifier_mode: QuantityModifierMode,
-    pub quality_modifiers: Option<Vec<QuantityModifier>>,
-    pub quality_modifier_mode: QuantityModifierMode,
-    pub mod_data: Option<IndexMap<String, String>>,
-    pub per_item_condition: Option<String>,
-
-    // Fields from GenericSpawnItemDataWithCondition
-    pub condition: Option<String>,
+    #[serde(flatten)]
+    pub parent: GenericSpawnItemDataWithCondition,
 
     // Fields from ObjectGeodeDropData
     pub chance: f64,

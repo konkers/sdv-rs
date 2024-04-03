@@ -10,10 +10,11 @@ pub enum Weather {
     Sun = 0,
     Rain = 1,
     Wind = 2,
-    Lightning = 3,
+    Storm = 3,
     Festival = 4,
     Snow = 5,
     Wedding = 6,
+    GreenRain = 7,
 }
 
 #[derive(Debug)]
@@ -59,7 +60,7 @@ impl LocationWeather {
         } else if self.is_debris {
             Weather::Wind
         } else if self.is_lightning {
-            Weather::Lightning
+            Weather::Storm
         } else if self.is_raining {
             Weather::Snow
         } else {

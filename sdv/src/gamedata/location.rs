@@ -1,8 +1,8 @@
 use anyhow::{anyhow, Context, Result};
 use indexmap::IndexMap;
 
-use serde::Deserialize;
-use serde_repr::Deserialize_repr;
+use serde::{Deserialize, Serialize};
+use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use std::{
     fs::File,
@@ -16,7 +16,7 @@ use crate::common::{
     XnaRectangle,
 };
 
-#[derive(Clone, Debug, Deserialize_repr, PartialEq, XnbType)]
+#[derive(Clone, Debug, Deserialize_repr, PartialEq, Serialize_repr, XnbType)]
 #[repr(i32)]
 pub enum MusicContext {
     Default,
@@ -28,7 +28,7 @@ pub enum MusicContext {
     Max,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, XnbType)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, XnbType)]
 #[xnb_name("StardewValley.GameData.Locations.LocationMusicData")]
 pub struct LocationMusicData {
     id: String,
@@ -36,7 +36,7 @@ pub struct LocationMusicData {
     condition: String,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, XnbType)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, XnbType)]
 #[xnb_name("StardewValley.GameData.Locations.SpawnForageData")]
 pub struct SpawnForageData {
     #[serde(flatten)]
@@ -46,7 +46,7 @@ pub struct SpawnForageData {
     pub season: Option<Season>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, XnbType)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, XnbType)]
 #[xnb_name("StardewValley.GameData.Locations.SpawnFishData")]
 pub struct SpawnFishData {
     #[serde(flatten)]
@@ -75,7 +75,7 @@ pub struct SpawnFishData {
     pub use_fish_caught_seeded_random: bool,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, XnbType)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, XnbType)]
 #[xnb_name("StardewValley.GameData.Locations.FishAreaData")]
 pub struct FishAreaData {
     pub display_name: Option<String>,
@@ -84,7 +84,7 @@ pub struct FishAreaData {
     pub crab_pot_junk_chance: f32,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, XnbType)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, XnbType)]
 #[xnb_name("StardewValley.GameData.Locations.ArtifactSpotDropData")]
 pub struct ArtifactSpotDropData {
     #[serde(flatten)]
@@ -97,7 +97,7 @@ pub struct ArtifactSpotDropData {
     pub continue_on_drop: bool,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, XnbType)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, XnbType)]
 #[xnb_name("StardewValley.GameData.Locations.CreateLocationData")]
 pub struct CreateLocationData {
     pub map_path: String,
@@ -105,7 +105,7 @@ pub struct CreateLocationData {
     pub always_active: bool,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, XnbType)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, XnbType)]
 #[xnb_name("StardewValley.GameData.Locations.LocationData")]
 pub struct LocationData {
     pub display_name: Option<String>,

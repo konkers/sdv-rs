@@ -3,7 +3,7 @@ use anyhow::{anyhow, Result};
 use itertools::Itertools;
 use sdv::{
     common::{DayOfWeek, ObjectCategory, Point},
-    gamedata::{GameData, ObjectTaste},
+    gamedata::{Fish, GameData, ObjectTaste},
     //predictor::{Geode, GeodeType},
     save::Object,
     SaveGame,
@@ -11,12 +11,15 @@ use sdv::{
 use std::{
     collections::{HashMap, HashSet},
     convert::TryFrom,
-    fmt::Write,
+    fmt::{Display, Write},
     fs::File,
+    hash::Hash,
     io::BufReader,
     iter::FromIterator,
+    ops::Deref,
     path::PathBuf,
 };
+use structopt::clap::arg_enum;
 use structopt::StructOpt;
 use termimad::{rgb, Alignment, MadSkin};
 
@@ -69,6 +72,28 @@ impl GameContentLoc {
         Ok(self.game_content.clone())
     }
 }
+arg_enum! {
+    #[derive(Debug)]
+    enum Format {
+        Text,
+        Json,
+    }
+}
+
+impl Default for Format {
+    fn default() -> Self {
+        Self::Text
+    }
+}
+
+#[derive(Debug, StructOpt)]
+struct DumpOpts {
+    #[structopt(flatten)]
+    content: GameContentLoc,
+
+    #[structopt(long, default_value = "text")]
+    format: Format,
+}
 
 #[derive(Debug, StructOpt)]
 struct GameAndSaveOpt {
@@ -86,12 +111,12 @@ struct SaveFileLoc {
 
 #[derive(Debug, StructOpt)]
 enum DumpOpt {
-    Bundles(GameContentLoc),
-    Characters(GameContentLoc),
-    Fish(GameContentLoc),
-    Locations(GameContentLoc),
-    Objects(GameContentLoc),
-    NpcGiftTastes(GameContentLoc),
+    Bundles(DumpOpts),
+    Characters(DumpOpts),
+    Fish(DumpOpts),
+    Locations(DumpOpts),
+    Objects(DumpOpts),
+    NpcGiftTastes(DumpOpts),
     Save(SaveFileLoc),
 }
 
@@ -139,24 +164,67 @@ fn mad_skin() -> MadSkin {
     skin
 }
 
+fn print_list<T: Display, L: IntoIterator<Item = T>>(list: L) {
+    for (n, item) in list.into_iter().enumerate() {
+        if n > 0 {
+            print!(", {item}");
+        } else {
+            print!("{item}");
+        }
+    }
+}
+
+fn print_fish(id: &str, fish: &Fish, fish_locations: &HashMap<String, Vec<String>>) {
+    println!("* {}", &fish.name());
+
+    if let Fish::Line { times, .. } = fish {
+        print!("  - times: ");
+        print_list(times);
+        println!();
+    }
+
+    if let Some(locations) = fish_locations.get(&format!("(O){id}")) {
+        print!("  - locations: ");
+        print_list(locations);
+        println!();
+    }
+    if let Fish::Trap { location, .. } = fish {
+        println!("  - crab pot location: {location}");
+    }
+}
+
 fn cmd_fish(opt: &GameAndSaveOpt) -> Result<()> {
     let data = GameData::load(opt.content.get()?)?;
     let f = File::open(&opt.file)?;
     let mut r = BufReader::new(f);
     let save = SaveGame::from_reader(&mut r)?;
 
+    let fish_locations = calculate_fish_locations(&data)?;
     println!(
-        "Today is {:?} {} year {}.  Available, uncaught fish:",
+        "Today is {:?} {} year {}.\n",
         &save.current_season, &save.day_of_month, &save.year
     );
 
-    for (_id, fish) in data
+    println!("Available, uncaught line fish:");
+    for (id, fish) in data
         .fish
         .iter()
         .filter(|(id, _fish)| !save.player.fish_caught.contains_key(&format!("(O){id}")))
         .filter(|(_id, fish)| fish.in_season(&save.current_season))
+        .filter(|(_id, fish)| fish.is_line_fish())
     {
-        println!("  {}", &fish.name());
+        print_fish(id, fish, &fish_locations);
+    }
+
+    println!("\nAvailable, uncaught pot fish:");
+    for (id, fish) in data
+        .fish
+        .iter()
+        .filter(|(id, _fish)| !save.player.fish_caught.contains_key(&format!("(O){id}")))
+        .filter(|(_id, fish)| fish.in_season(&save.current_season))
+        .filter(|(_id, fish)| fish.is_pot_fish())
+    {
+        print_fish(id, fish, &fish_locations);
     }
 
     println!("\nunavailable, uncaught:");
@@ -265,11 +333,15 @@ fn calculate_fish_locations(data: &GameData) -> Result<HashMap<String, Vec<Strin
         };
 
         for fish in fishes {
-            match fish_locations.get_mut(&fish.parent.parent.id) {
-                Some(locations) => locations.push(location_name.clone()),
-                None => {
-                    fish_locations
-                        .insert(fish.parent.parent.id.clone(), vec![location_name.clone()]);
+            let tmp = vec![fish.parent.parent.id.clone()];
+            let ids = fish.parent.parent.random_item_id.as_ref().unwrap_or(&tmp);
+
+            for id in ids {
+                match fish_locations.get_mut(id) {
+                    Some(locations) => locations.push(location_name.clone()),
+                    None => {
+                        fish_locations.insert(id.clone(), vec![location_name.clone()]);
+                    }
                 }
             }
         }
@@ -715,8 +787,8 @@ fn cmd_todo(opt: &GameAndSaveOpt) -> Result<()> {
     Ok(())
 }
 
-fn cmd_dump_bundles(opt: &GameContentLoc) -> Result<()> {
-    let data = GameData::load(opt.get()?)?;
+fn cmd_dump_bundles(opt: &DumpOpts) -> Result<()> {
+    let data = GameData::load(opt.content.get()?)?;
 
     for bundle in &data.bundles {
         println!("{:?}", &bundle);
@@ -725,8 +797,8 @@ fn cmd_dump_bundles(opt: &GameContentLoc) -> Result<()> {
     Ok(())
 }
 
-fn cmd_dump_characters(opt: &GameContentLoc) -> Result<()> {
-    let data = GameData::load(opt.get()?)?;
+fn cmd_dump_characters(opt: &DumpOpts) -> Result<()> {
+    let data = GameData::load(opt.content.get()?)?;
 
     for character in &data.characters {
         println!("{:?}", &character);
@@ -735,8 +807,8 @@ fn cmd_dump_characters(opt: &GameContentLoc) -> Result<()> {
     Ok(())
 }
 
-fn cmd_dump_fish(opt: &GameContentLoc) -> Result<()> {
-    let data = GameData::load(opt.get()?)?;
+fn cmd_dump_fish(opt: &DumpOpts) -> Result<()> {
+    let data = GameData::load(opt.content.get()?)?;
 
     for (id, fish) in &data.fish {
         println!("{}: {:?}", id, &fish);
@@ -749,18 +821,25 @@ fn cmd_dump_fish(opt: &GameContentLoc) -> Result<()> {
     Ok(())
 }
 
-fn cmd_dump_locations(opt: &GameContentLoc) -> Result<()> {
-    let data = GameData::load(opt.get()?)?;
+fn cmd_dump_locations(opt: &DumpOpts) -> Result<()> {
+    let data = GameData::load(opt.content.get()?)?;
 
-    for location in &data.locations {
-        println!("{:?}", location);
+    match opt.format {
+        Format::Text => {
+            for location in &data.locations {
+                println!("{:?}", location);
+            }
+        }
+        Format::Json => {
+            println!("{}", serde_json::to_string_pretty(&data.locations)?);
+        }
     }
 
     Ok(())
 }
 
-fn cmd_dump_objects(opt: &GameContentLoc) -> Result<()> {
-    let data = GameData::load(opt.get()?)?;
+fn cmd_dump_objects(opt: &DumpOpts) -> Result<()> {
+    let data = GameData::load(opt.content.get()?)?;
 
     for (id, object) in &data.objects {
         println!("{}: {:?}", id, &object);
@@ -775,8 +854,8 @@ fn cmd_dump_objects(opt: &GameContentLoc) -> Result<()> {
     Ok(())
 }
 
-fn cmd_dump_npc_gift_tastes(opt: &GameContentLoc) -> Result<()> {
-    let data = GameData::load(opt.get()?)?;
+fn cmd_dump_npc_gift_tastes(opt: &DumpOpts) -> Result<()> {
+    let data = GameData::load(opt.content.get()?)?;
 
     for (id, tastes) in &data.npc_gift_tastes {
         println!("{}: {:?}", id, &tastes);

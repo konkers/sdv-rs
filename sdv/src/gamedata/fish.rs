@@ -2,6 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use indexmap::IndexMap;
 use nom::{branch::alt, bytes::complete::tag, combinator::value, multi::many1, IResult};
 use std::{
+    fmt::Display,
     fs::File,
     io::{BufReader, Read},
     path::Path,
@@ -31,7 +32,7 @@ impl FishBehavior {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, strum::Display)]
 pub enum TrapLocation {
     Ocean,
     Freshwater,
@@ -77,6 +78,31 @@ impl TimeSpan {
         let (i, end) = sub_field_value(decimal)(i)?;
 
         Ok((i, TimeSpan { start, end }))
+    }
+
+    fn fmt_time(f: &mut std::fmt::Formatter<'_>, time: i32) -> std::fmt::Result {
+        let time = time % 2400;
+        let (time, meridiem) = if time < 1200 {
+            (time, "am")
+        } else if time < 1300 {
+            (time, "pm")
+        } else {
+            (time - 1200, "pm")
+        };
+        f.write_fmt(format_args!(
+            "{:02}:{:02}{}",
+            time / 100,
+            time % 100,
+            meridiem
+        ))
+    }
+}
+
+impl Display for TimeSpan {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Self::fmt_time(f, self.start)?;
+        f.write_str("-")?;
+        Self::fmt_time(f, self.end)
     }
 }
 
@@ -145,6 +171,14 @@ impl Fish {
             }
             Self::Trap { .. } => true,
         }
+    }
+
+    pub fn is_line_fish(&self) -> bool {
+        matches!(self, Self::Line { .. })
+    }
+
+    pub fn is_pot_fish(&self) -> bool {
+        matches!(self, Self::Trap { .. })
     }
 
     fn parse(i: &str) -> IResult<&str, Self> {

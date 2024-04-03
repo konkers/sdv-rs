@@ -6,7 +6,9 @@ use num_traits::FromPrimitive;
 use roxmltree::Node;
 
 use serde::Deserialize;
+use serde::Serialize;
 use serde_repr::Deserialize_repr;
+use serde_repr::Serialize_repr;
 
 use std::convert::TryFrom;
 use std::convert::TryInto;
@@ -17,7 +19,7 @@ use crate::save::{Finder, NodeFinder, SaveError, SaveResult};
 
 pub use xnb::XnbType;
 
-#[derive(Clone, Debug, Default, Deserialize, EnumString, Eq, PartialEq, XnbType)]
+#[derive(Clone, Debug, Default, Deserialize, EnumString, Eq, PartialEq, Serialize, XnbType)]
 #[strum(ascii_case_insensitive)]
 pub enum ObjectType {
     #[default]
@@ -39,7 +41,17 @@ pub enum ObjectType {
 }
 
 #[derive(
-    Clone, Default, Deserialize_repr, EnumString, Eq, Debug, FromPrimitive, Hash, PartialEq, XnbType,
+    Clone,
+    Default,
+    Deserialize_repr,
+    EnumString,
+    Eq,
+    Debug,
+    FromPrimitive,
+    Hash,
+    PartialEq,
+    Serialize,
+    XnbType,
 )]
 #[repr(i32)]
 pub enum ObjectCategory {
@@ -83,7 +95,7 @@ pub enum ObjectCategory {
 }
 
 // This should, perhaps, be moved to `xnb-rs`.
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, XnbType)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, XnbType)]
 #[xnb_name("Microsoft.Xna.Framework.Point")]
 #[xnb_untagged]
 pub struct XnaPoint {
@@ -92,13 +104,13 @@ pub struct XnaPoint {
 }
 
 // This should, perhaps, be moved to `xnb-rs`.
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Serialize, PartialEq)]
 pub struct Point<T> {
     pub x: T,
     pub y: T,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Serialize, PartialEq)]
 pub struct Size<T> {
     pub h: T,
     pub w: T,
@@ -134,7 +146,7 @@ impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for Point<f32> {
 }
 
 // This should, perhaps, be moved to `xnb-rs`.
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, XnbType)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, XnbType)]
 #[xnb_name("Microsoft.Xna.Framework.Rectangle")]
 #[xnb_untagged]
 pub struct XnaRectangle {
@@ -144,7 +156,7 @@ pub struct XnaRectangle {
     height: i32,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Serialize, PartialEq)]
 pub struct Rect<T> {
     p1: Point<T>,
     p2: Point<T>,
@@ -168,7 +180,7 @@ impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for Rect<i32> {
     }
 }
 
-#[derive(Clone, Debug, Deserialize_repr, PartialEq, XnbType)]
+#[derive(Clone, Debug, Deserialize_repr, PartialEq, Serialize_repr, XnbType)]
 #[repr(i32)]
 pub enum Season {
     Spring,
@@ -262,7 +274,7 @@ impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for ObjectCategory {
     }
 }
 
-#[derive(Clone, Debug, Deserialize_repr, FromPrimitive, PartialEq, XnbType)]
+#[derive(Clone, Debug, Deserialize_repr, FromPrimitive, PartialEq, Serialize_repr, XnbType)]
 #[repr(i32)]
 pub enum ModificationType {
     Add = 0,
@@ -272,7 +284,7 @@ pub enum ModificationType {
     Set,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, XnbType)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, XnbType)]
 #[xnb_name("StardewValley.GameData.QuantityModifier")]
 pub struct QuantityModifier {
     pub id: String,
@@ -282,7 +294,7 @@ pub struct QuantityModifier {
     pub random_amount: Option<Vec<f32>>,
 }
 
-#[derive(Clone, Debug, Deserialize_repr, FromPrimitive, PartialEq, XnbType)]
+#[derive(Clone, Debug, Deserialize_repr, FromPrimitive, PartialEq, Serialize_repr, XnbType)]
 #[repr(i32)]
 pub enum QuantityModifierMode {
     Stack = 0,
@@ -290,7 +302,7 @@ pub enum QuantityModifierMode {
     Maximum,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, XnbType)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, XnbType)]
 #[xnb_name("StardewValley.GameData.GenericSpawnItemData")]
 pub struct GenericSpawnItemData {
     pub id: String,
@@ -312,7 +324,7 @@ pub struct GenericSpawnItemData {
     pub per_item_condition: Option<String>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, XnbType)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, XnbType)]
 #[xnb_name("StardewValley.GameData.GenericSpawnItemDataWithCondition")]
 pub struct GenericSpawnItemDataWithCondition {
     #[serde(flatten)]
@@ -321,7 +333,7 @@ pub struct GenericSpawnItemDataWithCondition {
     pub condition: Option<String>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, XnbType)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, XnbType)]
 #[xnb_name("StardewValley.GameData.Characters.CharacterData")]
 // TODO: Generate this from game data.
 #[repr(i32)]

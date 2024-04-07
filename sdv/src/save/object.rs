@@ -7,7 +7,7 @@ use roxmltree::Node;
 use super::{Finder, NodeFinder, Profession, SaveError, SaveResult};
 use crate::{
     common::{ObjectCategory, ObjectType, Point, Rect},
-    gamedata,
+    gamedata, GameData,
 };
 
 impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for ObjectType {
@@ -23,7 +23,7 @@ pub struct Object {
     pub is_lost: bool,
     pub category: ObjectCategory,
     pub has_been_in_inventory: bool,
-    pub name: String,
+    pub name: Option<String>,
     pub parent_sheet_index: Option<i32>,
     pub initial_sheet_index: Option<i32>,
     pub current_sheet_index: Option<i32>,
@@ -31,7 +31,6 @@ pub struct Object {
     pub special_item: bool,
     pub special_variable: i32,
     pub display_name: String,
-    pub name2: String,
     pub stack: i32,
     pub tile_location: Option<Point<i32>>,
     pub owner: Option<i64>,
@@ -78,7 +77,7 @@ impl Object {
             is_lost: node.child("isLostItem").try_into()?,
             category: node.child("category").try_into()?,
             has_been_in_inventory: node.child("hasBeenInInventory").try_into()?,
-            name: node.child("name").try_into()?,
+            name: node.child("name").try_into().ok(),
             parent_sheet_index: node.child("parentSheetIndex").try_into().ok(),
             initial_sheet_index: node.child("initialParentSheetIndex").try_into().ok(),
             current_sheet_index: node.child("currentParentSheetIndex").try_into().ok(),
@@ -86,7 +85,6 @@ impl Object {
             special_variable: node.child("SpecialVariable").try_into()?,
             //TODO: display_name: node.child("DisplayName").try_into()?,
             display_name: String::new(), //node.child("DisplayName").try_into()?,
-            name2: node.child("name").try_into()?,
             stack: node.child("stack").try_into()?,
             tile_location: node.child("tileLocation").try_into().ok(),
             owner: node.child("owner").try_into().ok(),
@@ -140,13 +138,29 @@ impl Object {
             .collect()
     }
 
+    pub fn lookup_name<'a>(&'a self, data: &'a GameData) -> Result<&'a str> {
+        if let Some(name) = &self.name {
+            return Ok(name);
+        }
+        if let Ok(object) = data.get_object(&self.id) {
+            return Ok(&object.name);
+        }
+
+        Ok(&self.id)
+    }
+
     pub fn price_multiplier(&self, professions: &IndexSet<Profession>) -> f32 {
         // Some goods for the Rancher profession are not chosen by category so
         // we fix them up here.
-        let animal_good = self.name.to_lowercase().contains("mayonnaise")
-            || self.name.to_lowercase().contains("cheese")
-            || self.name.to_lowercase().contains("cloth")
-            || self.name.to_lowercase().contains("wool");
+        let name = match &self.name {
+            Some(name) => name.as_str(),
+            None => "",
+        };
+
+        let animal_good = name.to_lowercase().contains("mayonnaise")
+            || name.to_lowercase().contains("cheese")
+            || name.to_lowercase().contains("cloth")
+            || name.to_lowercase().contains("wool");
 
         let category = if animal_good {
             &ObjectCategory::SellAtPierresAndMarines
@@ -256,8 +270,7 @@ impl Object {
     pub fn from_gamedata(object: &gamedata::ObjectData, quantity: i32) -> Object {
         Object {
             category: object.category.clone(),
-            name: object.name.clone(),
-            name2: object.name.clone(),
+            name: Some(object.name.clone()),
             parent_sheet_index: Some(object.sprite_index),
             display_name: object.display_name.clone(),
             ty: object.ty.clone(),

@@ -306,9 +306,10 @@ struct ItemInfo {
     irridium: ItemQuantityAndLocations,
 }
 
-fn aggregate_items(items: Vec<Item>) -> HashMap<String, ItemInfo> {
-    items.iter().fold(HashMap::new(), |mut acc, item| {
-        let info = acc.entry(item.object.name.clone()).or_default();
+fn aggregate_items(items: Vec<Item>, data: &GameData) -> Result<HashMap<String, ItemInfo>> {
+    items.iter().try_fold(HashMap::new(), |mut acc, item| {
+        let name = item.object.lookup_name(data)?.to_string();
+        let info: &mut ItemInfo = acc.entry(name).or_default();
         let quantity_and_locations = match item.object.quality {
             Some(1) => &mut info.iron,
             Some(2) => &mut info.gold,
@@ -320,7 +321,7 @@ fn aggregate_items(items: Vec<Item>) -> HashMap<String, ItemInfo> {
             .locations
             .insert(item.location.clone());
         info.id = item.object.id.clone();
-        acc
+        Ok(acc)
     })
 }
 
@@ -349,7 +350,7 @@ fn calculate_fish_locations(data: &GameData) -> Result<HashMap<String, Vec<Strin
 }
 
 fn cmd_food(opt: &GameAndSaveOpt) -> Result<()> {
-    let _data = GameData::load(opt.content.get()?)?;
+    let data = GameData::load(opt.content.get()?)?;
     let f = File::open(&opt.file)?;
     let mut r = BufReader::new(f);
     let save = SaveGame::from_reader(&mut r)?;
@@ -404,7 +405,7 @@ fn cmd_food(opt: &GameAndSaveOpt) -> Result<()> {
         let ratio = item.1 .0;
         text.push_str(&format!(
             "|{}{} |{} | {} | {} | {:0.02} |{} |\n",
-            item.1 .2.name,
+            item.1 .2.lookup_name(&data)?,
             quality_txt,
             item.1 .3,
             item.1 .2.energy(),
@@ -419,7 +420,7 @@ fn cmd_food(opt: &GameAndSaveOpt) -> Result<()> {
 }
 
 fn cmd_items(opt: &ItemsOpt) -> Result<()> {
-    let _data = GameData::load(opt.loc.content.get()?)?;
+    let data = GameData::load(opt.loc.content.get()?)?;
     let f = File::open(&opt.loc.file)?;
     let mut r = BufReader::new(f);
     let save = SaveGame::from_reader(&mut r)?;
@@ -446,7 +447,7 @@ fn cmd_items(opt: &ItemsOpt) -> Result<()> {
     if opt.csv {
         for item in items {
             let quality = item.1 .2.quality.unwrap_or(0);
-            let name = item.1 .2.name;
+            let name = item.1 .2.lookup_name(&data)?;
             let quantity = item.1 .3;
             let stack_price = item.1 .0;
 
@@ -487,12 +488,20 @@ fn cmd_items(opt: &ItemsOpt) -> Result<()> {
             if item.1 .2.price_multiplier(&save.player.professions) > 1.0 {
                 text.push_str(&format!(
                     "|**{}**{} |{} | **{}** |{} |\n",
-                    item.1 .2.name, quality_txt, item.1 .3, stack_price, locations,
+                    item.1 .2.lookup_name(&data)?,
+                    quality_txt,
+                    item.1 .3,
+                    stack_price,
+                    locations,
                 ));
             } else {
                 text.push_str(&format!(
                     "|{}{} |{} | {} |{} |\n",
-                    item.1 .2.name, quality_txt, item.1 .3, stack_price, locations,
+                    item.1 .2.lookup_name(&data)?,
+                    quality_txt,
+                    item.1 .3,
+                    stack_price,
+                    locations,
                 ));
             }
         }
@@ -695,7 +704,7 @@ fn cmd_todo(opt: &GameAndSaveOpt) -> Result<()> {
     let mut text = String::new();
 
     let items = get_all_items(&save, false);
-    let aggregate_items = aggregate_items(items);
+    let aggregate_items = aggregate_items(items, &data)?;
 
     writeln!(
         &mut text,

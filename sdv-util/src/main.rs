@@ -27,14 +27,14 @@ use termimad::{rgb, Alignment, MadSkin};
 // use render_map::cmd_render_map;
 
 #[derive(Debug, StructOpt)]
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "macos"))]
 struct GameContentLoc {
     /// Path to Stardew Valley's Content directory
     #[structopt(long, parse(from_os_str))]
     game_content: Option<PathBuf>,
 }
 
-#[cfg(not(windows))]
+#[cfg(all(not(windows), not(target_os = "macos")))]
 #[derive(Debug, StructOpt)]
 struct GameContentLoc {
     /// Path to Stardew Valley's Content directory
@@ -66,7 +66,19 @@ impl GameContentLoc {
         Ok(path)
     }
 
-    #[cfg(not(windows))]
+    #[cfg(target_os = "macos")]
+    fn get(&self) -> Result<PathBuf> {
+        if let Some(path) = &self.game_content {
+            return Ok(path.clone());
+        }
+
+        let mut home_dir = dirs::home_dir().ok_or_else(|| anyhow!("Can't find home directory"))?;
+        home_dir.push("Library/Application Support/Steam/steamapps/common/Stardew Valley/Contents/Resources/Content");
+        println!("{}", home_dir.display());
+        Ok(home_dir)
+    }
+
+    #[cfg(all(not(windows), not(target_os = "macos")))]
     fn get(&self) -> Result<PathBuf> {
         Ok(self.game_content.clone())
     }

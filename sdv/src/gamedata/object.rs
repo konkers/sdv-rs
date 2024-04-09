@@ -10,9 +10,7 @@ use std::{
 };
 use xnb::{xnb_name, XnbType};
 
-use crate::common::{
-    GenericSpawnItemDataWithCondition, ObjectCategory, ObjectId, ObjectType,
-};
+use crate::common::{GenericSpawnItemDataWithCondition, ObjectCategory, ObjectId, ObjectType};
 
 use super::Locale;
 
@@ -85,10 +83,21 @@ pub struct ObjectData {
 
 impl ObjectData {
     pub fn display_name<'a>(&'a self, locale: &'a Locale) -> &'a str {
+        // First check if there's a collections tab name for this object.
+        // That will turn items like "Dried" into "Dried Mushrooms".
+        if let Some(name) = locale.strings.get(&format!(
+            "[LocalizedText Strings\\Objects:{}_CollectionsTabName]",
+            &self.id
+        )) {
+            return name;
+        }
+
+        // If collections tab name is found, then look up it's display name.
         if let Some(name) = locale.strings.get(&self.display_name) {
             return name;
         }
 
+        // If no locale name was found, return the raw object name._
         &self.name
     }
 

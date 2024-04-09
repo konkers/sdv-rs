@@ -108,6 +108,8 @@ pub struct XnaPoint {
 
 // This should, perhaps, be moved to `xnb-rs`.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Serialize, PartialEq)]
+#[cfg_attr(feature = "wasm", derive(tsify::Tsify))]
+#[cfg_attr(feature = "wasm", tsify(into_wasm_abi, from_wasm_abi))]
 pub struct Point<T> {
     pub x: T,
     pub y: T,

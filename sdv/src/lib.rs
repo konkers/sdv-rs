@@ -1,3 +1,4 @@
+pub mod analyzer;
 pub mod common;
 pub mod gamedata;
 pub mod predictor;

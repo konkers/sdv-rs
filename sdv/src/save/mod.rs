@@ -314,6 +314,7 @@ pub struct Player {
     pub stats: Stats,
     pub deepest_mine_level: i32,
     pub fish_caught: IndexMap<String, FishCaught>,
+    pub basic_shipped: IndexMap<String, i32>,
     pub professions: IndexSet<Profession>,
     pub experience: IndexMap<Skill, i32>,
     pub items: Vec<Object>,
@@ -346,6 +347,10 @@ impl Player {
                 },
             );
         }
+        let basic_shipped_node = node.child("basicShipped").try_into()?;
+        let basic_shipped = map_from_node(basic_shipped_node, "string", |node| {
+            node.child("int").try_into()
+        })?;
 
         let professions: SaveResult<IndexSet<Profession>> = node
             .child("professions")
@@ -378,6 +383,7 @@ impl Player {
             stats,
             deepest_mine_level,
             fish_caught,
+            basic_shipped,
             professions: professions?,
             experience,
             items,

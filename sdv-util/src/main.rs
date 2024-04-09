@@ -2,9 +2,9 @@ use ::crossterm::style::Color::*;
 use anyhow::{anyhow, Result};
 use itertools::Itertools;
 use sdv::{
+    analyzer::perfection::analyze_perfection,
     common::{DayOfWeek, ObjectCategory, Point},
     gamedata::{Fish, GameData, Locale, ObjectTaste},
-    //predictor::{Geode, GeodeType},
     save::Object,
     SaveGame,
 };
@@ -140,8 +140,8 @@ enum DumpOpt {
     Fish(DumpOpts),
     Locale(DumpOpts),
     Locations(DumpOpts),
-    Objects(DumpOpts),
     NpcGiftTastes(DumpOpts),
+    Objects(DumpOpts),
     Save(SaveFileLoc),
 }
 
@@ -182,6 +182,7 @@ enum Opt {
     Items(ItemsOpt),
     //RenderMap(RenderMapOpt),
     Package(PackageOpt),
+    Perfection(GameAndSaveOpt),
     Todo(GameAndSaveOpt),
 }
 
@@ -975,6 +976,17 @@ fn cmd_package(opt: &PackageOpt) -> Result<()> {
     }
 }
 
+fn cmd_perfection(opt: &GameAndSaveOpt) -> Result<()> {
+    let data = GameData::from_content_dir(opt.content.get()?)?;
+    let f = File::open(&opt.file)?;
+    let mut r = BufReader::new(f);
+    let save = SaveGame::from_reader(&mut r)?;
+
+    let analysis = analyze_perfection(&data, &save);
+    println!("{analysis:#?}");
+    Ok(())
+}
+
 fn main() -> Result<()> {
     env_logger::init();
 
@@ -988,6 +1000,7 @@ fn main() -> Result<()> {
         //Opt::Geodes(o) => cmd_geodes(&o)?,
         Opt::Items(o) => cmd_items(&o)?,
         Opt::Package(o) => cmd_package(&o)?,
+        Opt::Perfection(o) => cmd_perfection(&o)?,
         //Opt::RenderMap(o) => cmd_render_map(&o)?,
         Opt::Todo(o) => cmd_todo(&o)?,
     }

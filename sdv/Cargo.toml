@@ -14,7 +14,13 @@ num-traits = "0.2"
 num-derive = "0.3"
 roxmltree = "0.19.0"
 serde = { version = "1.0", features = ["derive"] }
-strum = { version = "0.24", features = ["derive"] }
-serde_repr = "0.1.18"
-xnb = { git = "https://github.com/konkers/xnb-rs", rev = "8204f1f48d6185d958163d0178d70603301791da" }
 serde_json = { version = "1.0.115", features = ["indexmap"] }
+serde_repr = "0.1.18"
+strum = { version = "0.24", features = ["derive"] }
+tsify = { version = "0.4.5", optional = true }
+wasm-bindgen = { version = "0.2.92", optional = true }
+xnb = { git = "https://github.com/konkers/xnb-rs", rev = "8204f1f48d6185d958163d0178d70603301791da" }
+
+[features]
+default = []
+wasm = ["dep:tsify", "dep:wasm-bindgen"]

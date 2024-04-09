@@ -22,6 +22,7 @@ use structopt::clap::arg_enum;
 use structopt::StructOpt;
 use termimad::{rgb, Alignment, MadSkin};
 
+mod perfection;
 // Needs to be updated for serde.
 // mod render_map;
 // use render_map::cmd_render_map;
@@ -126,8 +127,8 @@ enum DumpOpt {
     Characters(DumpOpts),
     Fish(DumpOpts),
     Locations(DumpOpts),
-    Objects(DumpOpts),
     NpcGiftTastes(DumpOpts),
+    Objects(DumpOpts),
     Save(SaveFileLoc),
 }
 
@@ -161,6 +162,7 @@ enum Opt {
     //  Geodes(GameAndSaveOpt),
     Items(ItemsOpt),
     //RenderMap(RenderMapOpt),
+    Perfection(GameAndSaveOpt),
     Todo(GameAndSaveOpt),
 }
 
@@ -918,6 +920,7 @@ fn main() -> Result<()> {
         Opt::Food(o) => cmd_food(&o)?,
         //Opt::Geodes(o) => cmd_geodes(&o)?,
         Opt::Items(o) => cmd_items(&o)?,
+        Opt::Perfection(o) => perfection::cmd_perfection(&o)?,
         //Opt::RenderMap(o) => cmd_render_map(&o)?,
         Opt::Todo(o) => cmd_todo(&o)?,
     }

@@ -16,6 +16,7 @@ use std::{collections::HashMap, path::Path};
 pub mod bundle;
 pub mod character;
 pub mod fish;
+pub mod locale;
 pub mod location;
 pub mod npc_gift_tastes;
 pub mod object;
@@ -26,6 +27,7 @@ pub mod object;
 pub use bundle::Bundle;
 pub use character::CharacterData;
 pub use fish::Fish;
+pub use locale::Locale;
 pub use npc_gift_tastes::NpcGiftTastes;
 pub use object::ObjectData;
 

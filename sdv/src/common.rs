@@ -65,6 +65,7 @@ pub enum ObjectCategory {
     Crafting = -8,
     BigCraftable = -9,
     Mineral = -12,
+    Meat = -14,
     Metal = -15,
     Building = -16,
     SellAtPierres = -17,
@@ -78,6 +79,7 @@ pub enum ObjectCategory {
     Artisan = -26,
     Syrup = -27,
     MonsterLoot = -28,
+    Equipment = -29,
     Seed = -74,
     Vegitable = -75,
     Fruit = -79,
@@ -88,10 +90,11 @@ pub enum ObjectCategory {
     Boots = -97, // unsure
     Weapon = -98,
     Tool = -99,
-    Pants = -100, // unsure
-    Unknown102 = -102,
-    Unknown103 = -103,
-    Unknown999 = -999,
+    Clothing = -100, // unsure
+    Trinket = -101,
+    Books = -102,
+    SkillBooks = -103,
+    Litter = -999,
 }
 
 // This should, perhaps, be moved to `xnb-rs`.
@@ -333,9 +336,10 @@ pub struct GenericSpawnItemDataWithCondition {
     pub condition: Option<String>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, XnbType)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, XnbType)]
 #[xnb_name("StardewValley.GameData.Characters.CharacterData")]
 // TODO: Generate this from game data.
+// TODO: This needs to be compatible with string IDs.
 #[repr(i32)]
 pub enum ObjectId {
     PrismaticShard = 74,
@@ -350,10 +354,17 @@ pub enum ObjectId {
     GoldOre = 384,
     IridiumOre = 386,
     Stone = 390,
+    CoffeeBean = 433,
     Geode = 535,
     FrozenGeode = 536,
     MagmaGeode = 537,
     OmniGeode = 749,
     GoldenCoconut = 791,
     QiBean = 890,
+}
+
+impl std::cmp::PartialEq<String> for ObjectId {
+    fn eq(&self, other: &String) -> bool {
+        *other == (*self as i32).to_string()
+    }
 }

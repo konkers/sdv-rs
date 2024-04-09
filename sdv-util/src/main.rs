@@ -3,7 +3,7 @@ use anyhow::{anyhow, Result};
 use itertools::Itertools;
 use sdv::{
     common::{DayOfWeek, ObjectCategory, Point},
-    gamedata::{Fish, GameData, ObjectTaste},
+    gamedata::{Fish, GameData, Locale, ObjectTaste},
     //predictor::{Geode, GeodeType},
     save::Object,
     SaveGame,
@@ -125,6 +125,7 @@ enum DumpOpt {
     Bundles(DumpOpts),
     Characters(DumpOpts),
     Fish(DumpOpts),
+    Locale(DumpOpts),
     Locations(DumpOpts),
     Objects(DumpOpts),
     NpcGiftTastes(DumpOpts),
@@ -841,6 +842,22 @@ fn cmd_dump_fish(opt: &DumpOpts) -> Result<()> {
     Ok(())
 }
 
+fn cmd_dump_locale(opt: &DumpOpts) -> Result<()> {
+    let locale = Locale::load(opt.content.get()?, "en-EN")?;
+    match opt.format {
+        Format::Text => {
+            for (key, value) in &locale.strings {
+                println!("{key}: {value}");
+            }
+        }
+        Format::Json => {
+            println!("{}", serde_json::to_string_pretty(&locale.strings)?);
+        }
+    }
+
+    Ok(())
+}
+
 fn cmd_dump_locations(opt: &DumpOpts) -> Result<()> {
     let data = GameData::load(opt.content.get()?)?;
 
@@ -899,6 +916,7 @@ fn cmd_dump(opt: &DumpOpt) -> Result<()> {
         DumpOpt::Bundles(o) => cmd_dump_bundles(o),
         DumpOpt::Characters(o) => cmd_dump_characters(o),
         DumpOpt::Fish(o) => cmd_dump_fish(o),
+        DumpOpt::Locale(o) => cmd_dump_locale(o),
         DumpOpt::Locations(o) => cmd_dump_locations(o),
         DumpOpt::Objects(o) => cmd_dump_objects(o),
         DumpOpt::NpcGiftTastes(o) => cmd_dump_npc_gift_tastes(o),

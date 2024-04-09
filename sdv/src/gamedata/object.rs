@@ -11,8 +11,10 @@ use std::{
 use xnb::{xnb_name, XnbType};
 
 use crate::common::{
-    GenericSpawnItemDataWithCondition, ObjectCategory, ObjectType,
+    GenericSpawnItemDataWithCondition, ObjectCategory, ObjectId, ObjectType,
 };
+
+use super::Locale;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, XnbType)]
 #[xnb_name("StardewValley.GameData.Objects.ObjectGeodeDropData")]
@@ -79,6 +81,59 @@ pub struct ObjectData {
     pub exclude_from_random_sale: bool,
     pub context_tags: Option<Vec<String>>,
     pub custom_fields: Option<IndexMap<String, String>>,
+}
+
+impl ObjectData {
+    pub fn display_name<'a>(&'a self, locale: &'a Locale) -> &'a str {
+        if let Some(name) = locale.strings.get(&self.display_name) {
+            return name;
+        }
+
+        &self.name
+    }
+
+    pub fn is_potential_basic_shipped(&self) -> bool {
+        if ObjectId::CoffeeBean == self.id {
+            return false;
+        }
+
+        if [
+            ObjectType::Arch,
+            ObjectType::Fish,
+            ObjectType::Minerals,
+            ObjectType::Cooking,
+        ]
+        .contains(&self.ty)
+        {
+            return false;
+        }
+
+        if [
+            ObjectCategory::Litter,
+            ObjectCategory::SkillBooks,
+            ObjectCategory::Books,
+            ObjectCategory::Ring,
+            ObjectCategory::Seed,
+            ObjectCategory::Equipment,
+            ObjectCategory::Furniture,
+            ObjectCategory::Tackle,
+            ObjectCategory::Bait,
+            ObjectCategory::Junk,
+            ObjectCategory::Fertilizer,
+            ObjectCategory::Meat,
+            ObjectCategory::Mineral,
+            ObjectCategory::Crafting,
+            ObjectCategory::Cooking,
+            ObjectCategory::Gem,
+            ObjectCategory::None,
+        ]
+        .contains(&self.category)
+        {
+            return false;
+        }
+
+        !self.exclude_from_fishing_collection
+    }
 }
 
 pub fn load_objects<P: AsRef<Path>>(file: P) -> Result<IndexMap<String, ObjectData>> {

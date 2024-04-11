@@ -1,4 +1,8 @@
-use std::{collections::HashMap, path::Path};
+use std::{
+    collections::HashMap,
+    io::{Read, Write},
+    path::Path,
+};
 
 use anyhow::Result;
 use indexmap::IndexMap;
@@ -9,7 +13,7 @@ pub struct Locale {
 }
 
 impl Locale {
-    pub fn load<P: AsRef<Path>>(game_content_dir: P, locale: &str) -> Result<Self> {
+    pub fn from_content_dir<P: AsRef<Path>>(game_content_dir: P, locale: &str) -> Result<Self> {
         let locale_extension = if locale == "en-EN" {
             "xnb".to_string()
         } else {
@@ -43,5 +47,20 @@ impl Locale {
         }
 
         Ok(Self { strings })
+    }
+
+    pub fn from_json_reader<R: Read>(reader: R) -> Result<Self> {
+        let strings = serde_json::from_reader(reader)?;
+        Ok(Self { strings })
+    }
+
+    pub fn to_json_writer<W: Write>(&self, writer: W) -> Result<()> {
+        serde_json::to_writer(writer, &self.strings)?;
+        Ok(())
+    }
+
+    pub fn to_pretty_json_writer<W: Write>(&self, writer: W) -> Result<()> {
+        serde_json::to_writer_pretty(writer, &self.strings)?;
+        Ok(())
     }
 }

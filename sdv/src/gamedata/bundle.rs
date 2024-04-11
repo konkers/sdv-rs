@@ -7,6 +7,7 @@ use nom::{
     multi::many0,
     IResult,
 };
+use serde::{Deserialize, Serialize};
 use std::{
     fs::File,
     io::{BufReader, Read},
@@ -15,7 +16,7 @@ use std::{
 
 use super::{decimal, field, field_value, sub_field_value};
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
 pub enum RewardType {
     Object,
     BigObject,
@@ -25,7 +26,7 @@ pub enum RewardType {
     Ring,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
 pub enum RoomId {
     Pantry,
     CraftsRoom,
@@ -36,21 +37,21 @@ pub enum RoomId {
     AbandonedJojaMart,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct BundleReward {
     pub ty: RewardType,
     pub id: i32,
     pub quantity: i32,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct BundleRequirement {
     pub id: i32,
     pub quantity: i32,
     pub minimum_quality: i32,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct Bundle {
     pub room: RoomId,
     pub sprite_id: i32,

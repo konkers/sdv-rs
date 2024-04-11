@@ -1,14 +1,10 @@
-use anyhow::{anyhow, Context, Result};
+
 use indexmap::IndexMap;
 
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
-use std::{
-    fs::File,
-    io::{BufReader, Read},
-    path::Path,
-};
+
 use xnb::{xnb_name, XnbType};
 
 use crate::common::{
@@ -137,14 +133,4 @@ pub struct LocationData {
     pub music_ignored_in_winter: bool,
     pub music_ignored_is_town_theme: bool,
     pub custom_fields: Option<IndexMap<String, String>>,
-}
-
-pub fn load_locations<P: AsRef<Path>>(file: P) -> Result<IndexMap<String, LocationData>> {
-    let file = file.as_ref();
-    let f = File::open(file).context(anyhow!("Can't open location file {}", file.display()))?;
-    let mut r = BufReader::new(f);
-    let mut data: Vec<u8> = Vec::new();
-
-    r.read_to_end(&mut data)?;
-    xnb::from_bytes(&data)
 }

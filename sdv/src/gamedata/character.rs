@@ -1,25 +1,21 @@
-use anyhow::{anyhow, Context, Result};
+
 use indexmap::IndexMap;
 
-use serde::Deserialize;
-use serde_repr::Deserialize_repr;
-use std::{
-    fs::File,
-    io::{BufReader, Read},
-    path::Path,
-};
+use serde::{Deserialize, Serialize};
+use serde_repr::{Deserialize_repr, Serialize_repr};
+
 use xnb::{xnb_name, XnbType};
 
 use crate::common::{GenericSpawnItemDataWithCondition, Season, XnaPoint, XnaRectangle};
 
-#[derive(Clone, Debug, Deserialize_repr, PartialEq, XnbType)]
+#[derive(Clone, Debug, Deserialize_repr, PartialEq, Serialize_repr, XnbType)]
 #[repr(i32)]
 pub enum NpcLanguage {
     Default,
     Dwarvish,
 }
 
-#[derive(Clone, Debug, Deserialize_repr, PartialEq, XnbType)]
+#[derive(Clone, Debug, Deserialize_repr, PartialEq, Serialize_repr, XnbType)]
 #[repr(i32)]
 pub enum Gender {
     Male,
@@ -27,7 +23,7 @@ pub enum Gender {
     Undefined,
 }
 
-#[derive(Clone, Debug, Deserialize_repr, PartialEq, XnbType)]
+#[derive(Clone, Debug, Deserialize_repr, PartialEq, Serialize_repr, XnbType)]
 #[repr(i32)]
 pub enum NpcAge {
     Adult,
@@ -35,7 +31,7 @@ pub enum NpcAge {
     Child,
 }
 
-#[derive(Clone, Debug, Deserialize_repr, PartialEq, XnbType)]
+#[derive(Clone, Debug, Deserialize_repr, PartialEq, Serialize_repr, XnbType)]
 #[repr(i32)]
 pub enum NpcManner {
     Neutral,
@@ -43,7 +39,7 @@ pub enum NpcManner {
     Rude,
 }
 
-#[derive(Clone, Debug, Deserialize_repr, PartialEq, XnbType)]
+#[derive(Clone, Debug, Deserialize_repr, PartialEq, Serialize_repr, XnbType)]
 #[repr(i32)]
 pub enum NpcSocialAnxiety {
     Outgoing,
@@ -51,7 +47,7 @@ pub enum NpcSocialAnxiety {
     Neutral,
 }
 
-#[derive(Clone, Debug, Deserialize_repr, PartialEq, XnbType)]
+#[derive(Clone, Debug, Deserialize_repr, PartialEq, Serialize_repr, XnbType)]
 #[repr(i32)]
 pub enum NpcOptimism {
     Positive,
@@ -59,7 +55,7 @@ pub enum NpcOptimism {
     Neutral,
 }
 
-#[derive(Clone, Debug, Deserialize_repr, PartialEq, XnbType)]
+#[derive(Clone, Debug, Deserialize_repr, PartialEq, Serialize_repr, XnbType)]
 #[repr(i32)]
 pub enum CalendarBehavior {
     AlwaysShown,
@@ -67,7 +63,7 @@ pub enum CalendarBehavior {
     HiddenAlways,
 }
 
-#[derive(Clone, Debug, Deserialize_repr, PartialEq, XnbType)]
+#[derive(Clone, Debug, Deserialize_repr, PartialEq, Serialize_repr, XnbType)]
 #[repr(i32)]
 pub enum SocialTabBehavior {
     UnknownUntilMet,
@@ -76,7 +72,7 @@ pub enum SocialTabBehavior {
     HiddenAlways,
 }
 
-#[derive(Clone, Debug, Deserialize_repr, PartialEq, XnbType)]
+#[derive(Clone, Debug, Deserialize_repr, PartialEq, Serialize_repr, XnbType)]
 #[repr(i32)]
 pub enum EndSlideShowBehavior {
     Hidden,
@@ -84,14 +80,14 @@ pub enum EndSlideShowBehavior {
     TrailingGroup,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, XnbType)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, XnbType)]
 #[xnb_name("StardewValley.GameData.Characters.CharacterSpouseRoomData")]
 pub struct CharacterSpouseRoomData {
     pub map_asset: Option<String>,
     pub map_source_rect: XnaRectangle,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, XnbType)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, XnbType)]
 #[xnb_name("StardewValley.GameData.Characters.CharacterSpousePatioData")]
 pub struct CharacterSpousePatioData {
     pub map_asset: Option<String>,
@@ -100,7 +96,7 @@ pub struct CharacterSpousePatioData {
     pub sprite_animation_pixel_offset: XnaPoint,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, XnbType)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, XnbType)]
 #[xnb_name("StardewValley.GameData.Characters.CharacterHomeData")]
 pub struct CharacterHomeData {
     pub id: String,
@@ -110,7 +106,7 @@ pub struct CharacterHomeData {
     pub direction: String,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, XnbType)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, XnbType)]
 #[xnb_name("StardewValley.GameData.Characters.CharacterAppearanceData")]
 pub struct CharacterAppearanceData {
     pub id: String,
@@ -125,7 +121,7 @@ pub struct CharacterAppearanceData {
     pub weight: i32,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, XnbType)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, XnbType)]
 #[xnb_name("StardewValley.GameData.Characters.CharacterShadowData")]
 pub struct CharacterShadowData {
     pub visible: bool,
@@ -133,7 +129,7 @@ pub struct CharacterShadowData {
     pub scale: f32,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, XnbType)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, XnbType)]
 #[xnb_name("StardewValley.GameData.Characters.CharacterData")]
 pub struct CharacterData {
     pub display_name: String,
@@ -197,14 +193,4 @@ pub struct CharacterData {
     pub former_character_names: Option<Vec<String>>,
     pub festival_vanilla_actor_index: i32,
     pub custom_fields: Option<IndexMap<String, String>>,
-}
-
-pub fn load_characters<P: AsRef<Path>>(file: P) -> Result<IndexMap<String, CharacterData>> {
-    let file = file.as_ref();
-    let f = File::open(file).context(anyhow!("Can't open character file {}", file.display()))?;
-    let mut r = BufReader::new(f);
-    let mut data: Vec<u8> = Vec::new();
-
-    r.read_to_end(&mut data)?;
-    xnb::from_bytes(&data)
 }

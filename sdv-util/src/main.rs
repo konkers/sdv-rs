@@ -83,6 +83,7 @@ impl GameContentLoc {
         Ok(self.game_content.clone())
     }
 }
+
 arg_enum! {
     #[derive(Debug)]
     enum Format {
@@ -104,6 +105,18 @@ struct DumpOpts {
 
     #[structopt(long, default_value = "text")]
     format: Format,
+}
+
+#[derive(Debug, StructOpt)]
+struct PackageOpts {
+    #[structopt(flatten)]
+    content: GameContentLoc,
+
+    #[structopt(long)]
+    pretty: bool,
+
+    #[structopt(long, parse(from_os_str))]
+    output: PathBuf,
 }
 
 #[derive(Debug, StructOpt)]
@@ -145,6 +158,12 @@ struct ItemsOpt {
 }
 
 #[derive(Debug, StructOpt)]
+enum PackageOpt {
+    GameData(PackageOpts),
+    Locale(PackageOpts),
+}
+
+#[derive(Debug, StructOpt)]
 #[allow(unused)]
 struct RenderMapOpt {
     #[structopt(flatten)]
@@ -162,6 +181,7 @@ enum Opt {
     //  Geodes(GameAndSaveOpt),
     Items(ItemsOpt),
     //RenderMap(RenderMapOpt),
+    Package(PackageOpt),
     Todo(GameAndSaveOpt),
 }
 
@@ -206,7 +226,7 @@ fn print_fish(id: &str, fish: &Fish, fish_locations: &HashMap<String, Vec<String
 }
 
 fn cmd_fish(opt: &GameAndSaveOpt) -> Result<()> {
-    let data = GameData::load(opt.content.get()?)?;
+    let data = GameData::from_content_dir(opt.content.get()?)?;
     let f = File::open(&opt.file)?;
     let mut r = BufReader::new(f);
     let save = SaveGame::from_reader(&mut r)?;
@@ -363,7 +383,7 @@ fn calculate_fish_locations(data: &GameData) -> Result<HashMap<String, Vec<Strin
 }
 
 fn cmd_food(opt: &GameAndSaveOpt) -> Result<()> {
-    let data = GameData::load(opt.content.get()?)?;
+    let data = GameData::from_content_dir(opt.content.get()?)?;
     let f = File::open(&opt.file)?;
     let mut r = BufReader::new(f);
     let save = SaveGame::from_reader(&mut r)?;
@@ -433,7 +453,7 @@ fn cmd_food(opt: &GameAndSaveOpt) -> Result<()> {
 }
 
 fn cmd_items(opt: &ItemsOpt) -> Result<()> {
-    let data = GameData::load(opt.loc.content.get()?)?;
+    let data = GameData::from_content_dir(opt.loc.content.get()?)?;
     let f = File::open(&opt.loc.file)?;
     let mut r = BufReader::new(f);
     let save = SaveGame::from_reader(&mut r)?;
@@ -674,7 +694,7 @@ fn cmd_items(opt: &ItemsOpt) -> Result<()> {
 // }
 
 fn cmd_bundles(opt: &GameAndSaveOpt) -> Result<()> {
-    let data = GameData::load(opt.content.get()?)?;
+    let data = GameData::from_content_dir(opt.content.get()?)?;
 
     let f = File::open(&opt.file)?;
     let mut r = BufReader::new(f);
@@ -706,7 +726,7 @@ fn cmd_bundles(opt: &GameAndSaveOpt) -> Result<()> {
 }
 
 fn cmd_todo(opt: &GameAndSaveOpt) -> Result<()> {
-    let data = GameData::load(opt.content.get()?)?;
+    let data = GameData::from_content_dir(opt.content.get()?)?;
     let f = File::open(&opt.file)?;
     let mut r = BufReader::new(f);
     let save = SaveGame::from_reader(&mut r)?;
@@ -809,7 +829,7 @@ fn cmd_todo(opt: &GameAndSaveOpt) -> Result<()> {
 }
 
 fn cmd_dump_bundles(opt: &DumpOpts) -> Result<()> {
-    let data = GameData::load(opt.content.get()?)?;
+    let data = GameData::from_content_dir(opt.content.get()?)?;
 
     for bundle in &data.bundles {
         println!("{:?}", &bundle);
@@ -819,7 +839,7 @@ fn cmd_dump_bundles(opt: &DumpOpts) -> Result<()> {
 }
 
 fn cmd_dump_characters(opt: &DumpOpts) -> Result<()> {
-    let data = GameData::load(opt.content.get()?)?;
+    let data = GameData::from_content_dir(opt.content.get()?)?;
 
     for character in &data.characters {
         println!("{:?}", &character);
@@ -829,7 +849,7 @@ fn cmd_dump_characters(opt: &DumpOpts) -> Result<()> {
 }
 
 fn cmd_dump_fish(opt: &DumpOpts) -> Result<()> {
-    let data = GameData::load(opt.content.get()?)?;
+    let data = GameData::from_content_dir(opt.content.get()?)?;
 
     for (id, fish) in &data.fish {
         println!("{}: {:?}", id, &fish);
@@ -843,7 +863,7 @@ fn cmd_dump_fish(opt: &DumpOpts) -> Result<()> {
 }
 
 fn cmd_dump_locale(opt: &DumpOpts) -> Result<()> {
-    let locale = Locale::load(opt.content.get()?, "en-EN")?;
+    let locale = Locale::from_content_dir(opt.content.get()?, "en-EN")?;
     match opt.format {
         Format::Text => {
             for (key, value) in &locale.strings {
@@ -859,7 +879,7 @@ fn cmd_dump_locale(opt: &DumpOpts) -> Result<()> {
 }
 
 fn cmd_dump_locations(opt: &DumpOpts) -> Result<()> {
-    let data = GameData::load(opt.content.get()?)?;
+    let data = GameData::from_content_dir(opt.content.get()?)?;
 
     match opt.format {
         Format::Text => {
@@ -876,7 +896,7 @@ fn cmd_dump_locations(opt: &DumpOpts) -> Result<()> {
 }
 
 fn cmd_dump_objects(opt: &DumpOpts) -> Result<()> {
-    let data = GameData::load(opt.content.get()?)?;
+    let data = GameData::from_content_dir(opt.content.get()?)?;
 
     for (id, object) in &data.objects {
         println!("{}: {:?}", id, &object);
@@ -892,7 +912,7 @@ fn cmd_dump_objects(opt: &DumpOpts) -> Result<()> {
 }
 
 fn cmd_dump_npc_gift_tastes(opt: &DumpOpts) -> Result<()> {
-    let data = GameData::load(opt.content.get()?)?;
+    let data = GameData::from_content_dir(opt.content.get()?)?;
 
     for (id, tastes) in &data.npc_gift_tastes {
         println!("{}: {:?}", id, &tastes);
@@ -924,6 +944,37 @@ fn cmd_dump(opt: &DumpOpt) -> Result<()> {
     }
 }
 
+fn cmd_package_game_data(opt: &PackageOpts) -> Result<()> {
+    let data = GameData::from_content_dir(opt.content.get()?)?;
+    let mut output = File::create(&opt.output)?;
+    if opt.pretty {
+        data.to_pretty_json_writer(&mut output)?;
+    } else {
+        data.to_json_writer(&mut output)?;
+    }
+
+    Ok(())
+}
+
+fn cmd_package_locale(opt: &PackageOpts) -> Result<()> {
+    let data = Locale::from_content_dir(opt.content.get()?, "en-EN")?;
+    let mut output = File::create(&opt.output)?;
+    if opt.pretty {
+        data.to_pretty_json_writer(&mut output)?;
+    } else {
+        data.to_json_writer(&mut output)?;
+    }
+
+    Ok(())
+}
+
+fn cmd_package(opt: &PackageOpt) -> Result<()> {
+    match opt {
+        PackageOpt::GameData(o) => cmd_package_game_data(o),
+        PackageOpt::Locale(o) => cmd_package_locale(o),
+    }
+}
+
 fn main() -> Result<()> {
     env_logger::init();
 
@@ -936,6 +987,7 @@ fn main() -> Result<()> {
         Opt::Food(o) => cmd_food(&o)?,
         //Opt::Geodes(o) => cmd_geodes(&o)?,
         Opt::Items(o) => cmd_items(&o)?,
+        Opt::Package(o) => cmd_package(&o)?,
         //Opt::RenderMap(o) => cmd_render_map(&o)?,
         Opt::Todo(o) => cmd_todo(&o)?,
     }

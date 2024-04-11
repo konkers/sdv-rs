@@ -3,19 +3,17 @@ use indexmap::IndexMap;
 use nom::{
     branch::alt,
     combinator::{map_parser, map_res},
-    multi::{many0},
+    multi::many0,
     IResult,
 };
 use num_traits::FromPrimitive;
-use std::{
-    collections::HashSet,
-    path::Path,
-};
+use serde::{Deserialize, Serialize};
+use std::{collections::HashSet, path::Path};
 
 use super::{decimal, field, sub_field, sub_field_value};
-use crate::common::{ObjectCategory};
+use crate::common::ObjectCategory;
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum Taste {
     Category(ObjectCategory),
     Item(String),
@@ -40,7 +38,7 @@ impl Taste {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Tastes {
     pub response: String,
     pub tastes: Vec<Taste>,
@@ -112,7 +110,7 @@ impl Tastes {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct NpcGiftTastes {
     pub love: Tastes,
     pub like: Tastes,

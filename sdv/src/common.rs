@@ -50,7 +50,7 @@ pub enum ObjectType {
     FromPrimitive,
     Hash,
     PartialEq,
-    Serialize,
+    Serialize_repr,
     XnbType,
 )]
 #[repr(i32)]
@@ -248,7 +248,7 @@ impl TryFrom<i32> for DayOfWeek {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub enum Weather {
     Sunny,
     Rainy,

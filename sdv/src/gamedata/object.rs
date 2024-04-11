@@ -1,20 +1,16 @@
-use anyhow::{anyhow, Context, Result};
+
 use indexmap::IndexMap;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-use std::{
-    fs::File,
-    io::{BufReader, Read},
-    path::Path,
-};
+
 use xnb::{xnb_name, XnbType};
 
 use crate::common::{GenericSpawnItemDataWithCondition, ObjectCategory, ObjectId, ObjectType};
 
 use super::Locale;
 
-#[derive(Clone, Debug, Deserialize, PartialEq, XnbType)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, XnbType)]
 #[xnb_name("StardewValley.GameData.Objects.ObjectGeodeDropData")]
 pub struct ObjectGeodeDropData {
     #[serde(flatten)]
@@ -26,7 +22,7 @@ pub struct ObjectGeodeDropData {
     pub precedence: i32,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, XnbType)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, XnbType)]
 #[xnb_name("StardewValley.GameData.Buffs.BuffAttributesData")]
 pub struct BuffAttributesData {
     pub farming_level: f32,
@@ -41,7 +37,7 @@ pub struct BuffAttributesData {
     pub attack: f32,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, XnbType)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, XnbType)]
 #[xnb_name("StardewValley.GameData.Objects.ObjectBuffData")]
 pub struct ObjectBuffData {
     pub id: String,
@@ -55,7 +51,7 @@ pub struct ObjectBuffData {
     pub custom_fields: Option<IndexMap<String, String>>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, XnbType)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, XnbType)]
 #[xnb_name("StardewValley.GameData.Objects.ObjectData")]
 pub struct ObjectData {
     #[serde(skip)]
@@ -143,23 +139,6 @@ impl ObjectData {
 
         !self.exclude_from_fishing_collection
     }
-}
-
-pub fn load_objects<P: AsRef<Path>>(file: P) -> Result<IndexMap<String, ObjectData>> {
-    let file = file.as_ref();
-    let f = File::open(file).context(anyhow!("Can't open object file {}", file.display()))?;
-    let mut r = BufReader::new(f);
-    let mut data: Vec<u8> = Vec::new();
-
-    r.read_to_end(&mut data)?;
-    let mut objects: IndexMap<String, ObjectData> = xnb::from_bytes(&data)?;
-
-    // Populate Object ID
-    objects
-        .iter_mut()
-        .for_each(|(id, object)| object.id = id.clone());
-
-    Ok(objects)
 }
 
 #[cfg(test)]

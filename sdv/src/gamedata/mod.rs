@@ -10,8 +10,13 @@ use nom::{
     sequence::{pair, preceded, terminated, tuple},
     IResult, Parser,
 };
-use std::{collections::HashMap, path::Path};
-
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use std::{
+    collections::HashMap,
+    io::{Read, Write},
+    path::Path,
+};
+use xnb::XnbType;
 
 pub mod bundle;
 pub mod character;
@@ -137,6 +142,40 @@ fn remaining_fields<'a>(i: &'a str) -> IResult<&'a str, Vec<String>> {
     Ok((i, fields.iter().map(|s| s.to_string()).collect()))
 }
 
+pub fn load_xnb_object<P: AsRef<Path>, T: DeserializeOwned + XnbType>(
+    game_content_dir: P,
+    relative_path: &str,
+) -> Result<T> {
+    let mut path = game_content_dir.as_ref().to_path_buf();
+    path.push(relative_path);
+    let data = std::fs::read(path)?;
+    xnb::from_bytes(&data)
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct GameDataRaw {
+    pub bundles: IndexMap<i32, Bundle>,
+    pub fish: IndexMap<String, Fish>,
+    pub objects: IndexMap<String, ObjectData>,
+    pub characters: IndexMap<String, CharacterData>,
+    pub npc_gift_tastes: IndexMap<String, NpcGiftTastes>,
+    pub locations: IndexMap<String, LocationData>,
+}
+
+impl From<&GameData> for GameDataRaw {
+    fn from(data: &GameData) -> Self {
+        Self {
+            bundles: data.bundles.clone(),
+            fish: data.fish.clone(),
+            objects: data.objects.clone(),
+            characters: data.characters.clone(),
+            npc_gift_tastes: data.npc_gift_tastes.clone(),
+            locations: data.locations.clone(),
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct GameData {
     pub bundles: IndexMap<i32, Bundle>,
     pub fish: IndexMap<String, Fish>,
@@ -148,7 +187,31 @@ pub struct GameData {
 }
 
 impl GameData {
-    pub fn load<P: AsRef<Path>>(game_content_dir: P) -> Result<GameData> {
+    fn from_game_data_raw(mut raw: GameDataRaw) -> Self {
+        // Populate object IDs.
+        raw.objects
+            .iter_mut()
+            .for_each(|(id, object)| object.id = id.clone());
+
+        // Calculate object_name_map.
+        let object_name_map = raw
+            .objects
+            .iter()
+            .map(|(id, object)| (object.name.clone(), id.clone()))
+            .collect();
+
+        Self {
+            bundles: raw.bundles,
+            fish: raw.fish,
+            objects: raw.objects,
+            characters: raw.characters,
+            npc_gift_tastes: raw.npc_gift_tastes,
+            locations: raw.locations,
+            object_name_map,
+        }
+    }
+
+    pub fn from_content_dir<P: AsRef<Path>>(game_content_dir: P) -> Result<GameData> {
         let game_content_dir = game_content_dir.as_ref().to_path_buf();
         let mut data_dir = game_content_dir.clone();
         data_dir.push("Data");
@@ -157,40 +220,42 @@ impl GameData {
         bundle_file.push("Bundles.xnb");
         let bundles = Bundle::load(&bundle_file)?;
 
-        let mut character_file = data_dir.clone();
-        character_file.push("Characters.xnb");
-        let characters = character::load_characters(&character_file)?;
+        let characters = load_xnb_object(&game_content_dir, "Data/Characters.xnb")?;
 
         let mut fish_file = data_dir.clone();
         fish_file.push("Fish.xnb");
         let fish = Fish::load(&fish_file)?;
 
-        let mut locations_file = data_dir.clone();
-        locations_file.push("Locations.xnb");
-        let locations = location::load_locations(&locations_file)?;
-
-        let mut object_file = data_dir.clone();
-        object_file.push("Objects.xnb");
-        let objects = object::load_objects(&object_file)?;
+        let locations = load_xnb_object(&game_content_dir, "Data/Locations.xnb")?;
+        let objects = load_xnb_object(&game_content_dir, "Data/Objects.xnb")?;
 
         let mut npc_gift_tastes_file = data_dir.clone();
         npc_gift_tastes_file.push("NPCGiftTastes.xnb");
         let npc_gift_tastes = NpcGiftTastes::load(&npc_gift_tastes_file)?;
 
-        let object_name_map = objects
-            .iter()
-            .map(|(id, object)| (object.name.clone(), id.clone()))
-            .collect();
-
-        Ok(GameData {
+        Ok(Self::from_game_data_raw(GameDataRaw {
             bundles,
             fish,
             objects,
             characters,
             npc_gift_tastes,
             locations,
-            object_name_map,
-        })
+        }))
+    }
+
+    pub fn from_json_reader<R: Read>(reader: R) -> Result<Self> {
+        let raw: GameDataRaw = serde_json::from_reader(reader)?;
+        Ok(Self::from_game_data_raw(raw))
+    }
+
+    pub fn to_json_writer<W: Write>(&self, writer: W) -> Result<()> {
+        serde_json::to_writer(writer, &GameDataRaw::from(self))?;
+        Ok(())
+    }
+
+    pub fn to_pretty_json_writer<W: Write>(&self, writer: W) -> Result<()> {
+        serde_json::to_writer_pretty(writer, &GameDataRaw::from(self))?;
+        Ok(())
     }
 
     pub fn get_object(&self, id: &str) -> Result<&ObjectData> {

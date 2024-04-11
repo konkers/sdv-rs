@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Context, Result};
 use indexmap::IndexMap;
 use nom::{branch::alt, bytes::complete::tag, combinator::value, multi::many1, IResult};
+use serde::{Deserialize, Serialize};
 use std::{
     fmt::Display,
     fs::File,
@@ -11,7 +12,7 @@ use std::{
 use super::{decimal, field, field_value, float, sub_field_value};
 use crate::common::{Season, Weather};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub enum FishBehavior {
     Mixed,
     Smooth,
@@ -32,7 +33,7 @@ impl FishBehavior {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, strum::Display)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, strum::Display)]
 pub enum TrapLocation {
     Ocean,
     Freshwater,
@@ -47,7 +48,7 @@ impl TrapLocation {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct BaitAffinity {
     bait_id: i32,
     affinity: f32,
@@ -66,7 +67,7 @@ impl BaitAffinity {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct TimeSpan {
     start: i32,
     end: i32,
@@ -106,7 +107,7 @@ impl Display for TimeSpan {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub enum Fish {
     Line {
         name: String,

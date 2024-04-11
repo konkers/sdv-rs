@@ -13,7 +13,7 @@ use serde_repr::Serialize_repr;
 use std::convert::TryFrom;
 use std::convert::TryInto;
 use strum::EnumString;
-use xnb::{xnb_name, xnb_untagged};
+use xnb::xnb_name;
 
 use crate::save::{Finder, NodeFinder, SaveError, SaveResult};
 
@@ -100,7 +100,7 @@ pub enum ObjectCategory {
 // This should, perhaps, be moved to `xnb-rs`.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, XnbType)]
 #[xnb_name("Microsoft.Xna.Framework.Point")]
-#[xnb_untagged]
+#[xnb(untagged)]
 pub struct XnaPoint {
     pub x: i32,
     pub y: i32,
@@ -151,7 +151,7 @@ impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for Point<f32> {
 // This should, perhaps, be moved to `xnb-rs`.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, XnbType)]
 #[xnb_name("Microsoft.Xna.Framework.Rectangle")]
-#[xnb_untagged]
+#[xnb(untagged)]
 pub struct XnaRectangle {
     x: i32,
     y: i32,

@@ -183,7 +183,7 @@ impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for Rect<i32> {
     }
 }
 
-#[derive(Clone, Debug, Deserialize_repr, PartialEq, Serialize_repr, XnbType)]
+#[derive(Clone, Debug, Deserialize_repr, PartialEq, Serialize_repr, XnbType, strum::Display)]
 #[repr(i32)]
 pub enum Season {
     Spring,
@@ -215,7 +215,7 @@ impl Season {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, strum::Display)]
 pub enum DayOfWeek {
     Sunday = 0,
     Monday,

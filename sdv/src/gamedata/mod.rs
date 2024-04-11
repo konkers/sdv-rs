@@ -36,6 +36,8 @@ pub use locale::Locale;
 pub use npc_gift_tastes::NpcGiftTastes;
 pub use object::ObjectData;
 
+use crate::FromJsonReader;
+
 use self::location::LocationData;
 
 // Needs to be updated for Serde
@@ -243,11 +245,6 @@ impl GameData {
         }))
     }
 
-    pub fn from_json_reader<R: Read>(reader: R) -> Result<Self> {
-        let raw: GameDataRaw = serde_json::from_reader(reader)?;
-        Ok(Self::from_game_data_raw(raw))
-    }
-
     pub fn to_json_writer<W: Write>(&self, writer: W) -> Result<()> {
         serde_json::to_writer(writer, &GameDataRaw::from(self))?;
         Ok(())
@@ -355,5 +352,12 @@ impl GameData {
         }
 
         Ok(taste)
+    }
+}
+
+impl FromJsonReader for GameData {
+    fn from_json_reader<R: Read>(reader: R) -> Result<Self> {
+        let raw: GameDataRaw = serde_json::from_reader(reader)?;
+        Ok(Self::from_game_data_raw(raw))
     }
 }

@@ -7,6 +7,8 @@ use std::{
 use anyhow::Result;
 use indexmap::IndexMap;
 
+use crate::FromJsonReader;
+
 #[derive(Debug)]
 pub struct Locale {
     pub strings: HashMap<String, String>,
@@ -49,11 +51,6 @@ impl Locale {
         Ok(Self { strings })
     }
 
-    pub fn from_json_reader<R: Read>(reader: R) -> Result<Self> {
-        let strings = serde_json::from_reader(reader)?;
-        Ok(Self { strings })
-    }
-
     pub fn to_json_writer<W: Write>(&self, writer: W) -> Result<()> {
         serde_json::to_writer(writer, &self.strings)?;
         Ok(())
@@ -62,5 +59,12 @@ impl Locale {
     pub fn to_pretty_json_writer<W: Write>(&self, writer: W) -> Result<()> {
         serde_json::to_writer_pretty(writer, &self.strings)?;
         Ok(())
+    }
+}
+
+impl FromJsonReader for Locale {
+    fn from_json_reader<R: Read>(reader: R) -> Result<Self> {
+        let strings = serde_json::from_reader(reader)?;
+        Ok(Self { strings })
     }
 }

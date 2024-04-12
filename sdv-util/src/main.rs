@@ -139,6 +139,7 @@ struct SaveFileLoc {
 
 #[derive(Debug, StructOpt)]
 enum DumpOpt {
+    BigCraftables(DumpOpts),
     Bundles(DumpOpts),
     Characters(DumpOpts),
     Fish(DumpOpts),
@@ -834,6 +835,16 @@ fn cmd_todo(opt: &GameAndSaveOpt) -> Result<()> {
     Ok(())
 }
 
+fn cmd_dump_big_craftables(opt: &DumpOpts) -> Result<()> {
+    let data = GameData::from_content_dir(opt.content.get()?)?;
+
+    for (id, val) in &data.big_craftables {
+        println!("{}: {:?}", id, &val);
+    }
+
+    Ok(())
+}
+
 fn cmd_dump_bundles(opt: &DumpOpts) -> Result<()> {
     let data = GameData::from_content_dir(opt.content.get()?)?;
 
@@ -939,6 +950,7 @@ fn cmd_dump_save(opt: &SaveFileLoc) -> Result<()> {
 
 fn cmd_dump(opt: &DumpOpt) -> Result<()> {
     match opt {
+        DumpOpt::BigCraftables(o) => cmd_dump_big_craftables(o),
         DumpOpt::Bundles(o) => cmd_dump_bundles(o),
         DumpOpt::Characters(o) => cmd_dump_characters(o),
         DumpOpt::Fish(o) => cmd_dump_fish(o),

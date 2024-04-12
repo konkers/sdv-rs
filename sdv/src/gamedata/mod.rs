@@ -18,6 +18,7 @@ use std::{
 };
 use xnb::XnbType;
 
+pub mod big_craftable;
 pub mod bundle;
 pub mod character;
 pub mod fish;
@@ -29,6 +30,7 @@ pub mod object;
 // pub mod map;
 // pub mod texture;
 
+pub use big_craftable::BigCraftableData;
 pub use bundle::Bundle;
 pub use character::CharacterData;
 pub use fish::Fish;
@@ -156,6 +158,7 @@ pub fn load_xnb_object<P: AsRef<Path>, T: DeserializeOwned + XnbType>(
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct GameDataRaw {
+    pub big_craftables: IndexMap<String, BigCraftableData>,
     pub bundles: IndexMap<i32, Bundle>,
     pub fish: IndexMap<String, Fish>,
     pub objects: IndexMap<String, ObjectData>,
@@ -167,6 +170,7 @@ pub struct GameDataRaw {
 impl From<&GameData> for GameDataRaw {
     fn from(data: &GameData) -> Self {
         Self {
+            big_craftables: data.big_craftables.clone(),
             bundles: data.bundles.clone(),
             fish: data.fish.clone(),
             objects: data.objects.clone(),
@@ -179,6 +183,7 @@ impl From<&GameData> for GameDataRaw {
 
 #[derive(Debug)]
 pub struct GameData {
+    pub big_craftables: IndexMap<String, BigCraftableData>,
     pub bundles: IndexMap<i32, Bundle>,
     pub fish: IndexMap<String, Fish>,
     pub objects: IndexMap<String, ObjectData>,
@@ -190,6 +195,11 @@ pub struct GameData {
 
 impl GameData {
     fn from_game_data_raw(mut raw: GameDataRaw) -> Self {
+        // Populate big_craftable IDs.
+        raw.big_craftables
+            .iter_mut()
+            .for_each(|(id, object)| object.id = id.clone());
+
         // Populate object IDs.
         raw.objects
             .iter_mut()
@@ -203,6 +213,7 @@ impl GameData {
             .collect();
 
         Self {
+            big_craftables: raw.big_craftables,
             bundles: raw.bundles,
             fish: raw.fish,
             objects: raw.objects,
@@ -217,6 +228,8 @@ impl GameData {
         let game_content_dir = game_content_dir.as_ref().to_path_buf();
         let mut data_dir = game_content_dir.clone();
         data_dir.push("Data");
+
+        let big_craftables = load_xnb_object(&game_content_dir, "Data/BigCraftables.xnb")?;
 
         let mut bundle_file = data_dir.clone();
         bundle_file.push("Bundles.xnb");
@@ -236,6 +249,7 @@ impl GameData {
         let npc_gift_tastes = NpcGiftTastes::load(&npc_gift_tastes_file)?;
 
         Ok(Self::from_game_data_raw(GameDataRaw {
+            big_craftables,
             bundles,
             fish,
             objects,

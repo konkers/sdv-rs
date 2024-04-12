@@ -1,3 +1,6 @@
 [workspace]
 resolver = "2"
 members = ["sdv", "sdv-util"]
+
+[workspace.dependencies]
+xnb = { git = "https://github.com/konkers/xnb-rs", rev = "8204f1f48d6185d958163d0178d70603301791da" }

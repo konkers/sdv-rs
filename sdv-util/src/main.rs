@@ -1,5 +1,17 @@
+use std::{
+    collections::{HashMap, HashSet},
+    convert::{TryFrom, TryInto},
+    fmt::{Display, Write},
+    fs::File,
+    hash::Hash,
+    io::{BufReader, Seek},
+    iter::FromIterator,
+    path::{Path, PathBuf},
+};
+
 use ::crossterm::style::Color::*;
 use anyhow::{anyhow, Result};
+use image::{codecs::png::PngEncoder, RgbaImage};
 use itertools::Itertools;
 use sdv::{
     analyzer::perfection::analyze_perfection,
@@ -8,19 +20,11 @@ use sdv::{
     save::Object,
     SaveGame,
 };
-use std::{
-    collections::{HashMap, HashSet},
-    convert::TryFrom,
-    fmt::{Display, Write},
-    fs::File,
-    hash::Hash,
-    io::BufReader,
-    iter::FromIterator,
-    path::PathBuf,
-};
 use structopt::clap::arg_enum;
 use structopt::StructOpt;
 use termimad::{rgb, Alignment, MadSkin};
+use walkdir::{DirEntry, WalkDir};
+use xnb::xna::Texture2D;
 
 // Needs to be updated for serde.
 // mod render_map;
@@ -161,6 +165,7 @@ struct ItemsOpt {
 enum PackageOpt {
     GameData(PackageOpts),
     Locale(PackageOpts),
+    Textures(PackageOpts),
 }
 
 #[derive(Debug, StructOpt)]
@@ -969,10 +974,84 @@ fn cmd_package_locale(opt: &PackageOpts) -> Result<()> {
     Ok(())
 }
 
+// Canonicalize the path representations across OSs.
+fn path_to_string(path: &std::path::Path) -> String {
+    let mut path_str = String::new();
+    for component in path.components() {
+        if let std::path::Component::Normal(os_str) = component {
+            if !path_str.is_empty() {
+                path_str.push('/');
+            }
+            path_str.push_str(&os_str.to_string_lossy());
+        }
+    }
+    path_str
+}
+
+fn handle_zip_entry<W: std::io::Write + Seek>(
+    zip: &mut zip::ZipWriter<W>,
+    content_path: &Path,
+    entry: DirEntry,
+) -> Result<()> {
+    let path = entry.into_path();
+    let relative_path = path.strip_prefix(content_path)?;
+    if relative_path.as_os_str().is_empty() {
+        return Err(anyhow!("relative path empty"));
+    }
+
+    if path.is_dir() {
+        zip.add_directory(
+            path_to_string(relative_path),
+            zip::write::FileOptions::default(),
+        )?;
+        return Ok(());
+    }
+
+    if path.extension().ok_or_else(|| anyhow!("no extension"))? != "xnb" {
+        return Err(anyhow!("Not an xnb file"));
+    }
+
+    let png_path = relative_path.with_extension("png");
+
+    let data = std::fs::read(&path)?;
+
+    let texture = xnb::from_bytes::<Texture2D>(&data)?;
+
+    println!("Processing {}", png_path.display());
+
+    let image: RgbaImage = texture.try_into()?;
+    zip.start_file(
+        path_to_string(&png_path),
+        zip::write::FileOptions::default(),
+    )?;
+    let encoder = PngEncoder::new(zip);
+    image.write_with_encoder(encoder)?;
+
+    Ok(())
+}
+
+fn cmd_package_textures(opt: &PackageOpts) -> Result<()> {
+    let content_path = opt.content.get()?;
+
+    let mut zip_file = File::create(&opt.output)?;
+    let mut zip = zip::ZipWriter::new(&mut zip_file);
+
+    for entry in WalkDir::new(&content_path) {
+        let Ok(entry) = entry else {
+            continue;
+        };
+        let _ = handle_zip_entry(&mut zip, &content_path, entry);
+    }
+
+    zip.finish()?;
+    Ok(())
+}
+
 fn cmd_package(opt: &PackageOpt) -> Result<()> {
     match opt {
         PackageOpt::GameData(o) => cmd_package_game_data(o),
         PackageOpt::Locale(o) => cmd_package_locale(o),
+        PackageOpt::Textures(o) => cmd_package_textures(o),
     }
 }
 

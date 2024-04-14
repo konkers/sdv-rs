@@ -12,6 +12,7 @@ use std::{
 use ::crossterm::style::Color::*;
 use anyhow::{anyhow, Result};
 use image::{codecs::png::PngEncoder, RgbaImage};
+use indexmap::IndexMap;
 use itertools::Itertools;
 use sdv::{
     analyzer::perfection::analyze_perfection,
@@ -20,8 +21,8 @@ use sdv::{
     save::Object,
     SaveGame,
 };
-use structopt::clap::arg_enum;
-use structopt::StructOpt;
+use serde::Serialize;
+use structopt::{clap::arg_enum, StructOpt};
 use termimad::{rgb, Alignment, MadSkin};
 use walkdir::{DirEntry, WalkDir};
 use xnb::xna::Texture2D;
@@ -139,6 +140,8 @@ struct SaveFileLoc {
 
 #[derive(Debug, StructOpt)]
 enum DumpOpt {
+    CookingRecipes(DumpOpts),
+    CraftingRecipes(DumpOpts),
     BigCraftables(DumpOpts),
     Bundles(DumpOpts),
     Characters(DumpOpts),
@@ -835,6 +838,36 @@ fn cmd_todo(opt: &GameAndSaveOpt) -> Result<()> {
     Ok(())
 }
 
+fn dump_data<T: std::fmt::Debug + Serialize>(
+    opt: &DumpOpts,
+    data: &IndexMap<String, T>,
+) -> Result<()> {
+    match opt.format {
+        Format::Text => {
+            for (id, val) in data {
+                println!("{}: {:?}", id, &val);
+            }
+        }
+        Format::Json => {
+            println!("{}", serde_json::to_string_pretty(&data)?);
+        }
+    }
+
+    Ok(())
+}
+
+fn cmd_dump_cooking_recipes(opt: &DumpOpts) -> Result<()> {
+    let data = GameData::from_content_dir(opt.content.get()?)?;
+
+    dump_data(opt, &data.cooking_recipies)
+}
+
+fn cmd_dump_crafting_recipes(opt: &DumpOpts) -> Result<()> {
+    let data = GameData::from_content_dir(opt.content.get()?)?;
+
+    dump_data(opt, &data.crafting_recipies)
+}
+
 fn cmd_dump_big_craftables(opt: &DumpOpts) -> Result<()> {
     let data = GameData::from_content_dir(opt.content.get()?)?;
 
@@ -950,6 +983,8 @@ fn cmd_dump_save(opt: &SaveFileLoc) -> Result<()> {
 
 fn cmd_dump(opt: &DumpOpt) -> Result<()> {
     match opt {
+        DumpOpt::CookingRecipes(o) => cmd_dump_cooking_recipes(o),
+        DumpOpt::CraftingRecipes(o) => cmd_dump_crafting_recipes(o),
         DumpOpt::BigCraftables(o) => cmd_dump_big_craftables(o),
         DumpOpt::Bundles(o) => cmd_dump_bundles(o),
         DumpOpt::Characters(o) => cmd_dump_characters(o),

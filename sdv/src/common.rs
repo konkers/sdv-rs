@@ -1,23 +1,58 @@
+use std::convert::{TryFrom, TryInto};
+
 use anyhow::{anyhow, Error, Result};
 use indexmap::IndexMap;
-use nom::{branch::alt, bytes::complete::tag, combinator::value, IResult};
+use nom::{branch::alt, bytes::complete::tag, combinator::map_res, combinator::value, IResult};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use roxmltree::Node;
-
-use serde::Deserialize;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_repr::Deserialize_repr;
 use serde_repr::Serialize_repr;
-
-use std::convert::TryFrom;
-use std::convert::TryInto;
 use strum::EnumString;
 use xnb::xnb_name;
 
+use crate::gamedata::{decimal, sub_field};
 use crate::save::{Finder, NodeFinder, SaveError, SaveResult};
 
 pub use xnb::XnbType;
+
+#[derive(Clone, Debug, Deserialize, EnumString, Eq, PartialEq, Serialize, XnbType)]
+pub enum ItemType {
+    BigCraftable,
+    Boot,
+    Flooring,
+    Furnature,
+    Hats,
+    Object,
+    Mannequin,
+    Pants,
+    Shirt,
+    Tools,
+    Trinket,
+    Wallpaper,
+    Weapon,
+}
+
+impl ItemType {
+    pub fn prefix(&self) -> &str {
+        match self {
+            ItemType::BigCraftable => "(BC)",
+            ItemType::Boot => "(B)",
+            ItemType::Flooring => "(FL)",
+            ItemType::Furnature => "(F)",
+            ItemType::Hats => "(H)",
+            ItemType::Mannequin => "(M)",
+            ItemType::Object => "(O)",
+            ItemType::Pants => "(P)",
+            ItemType::Shirt => "(S)",
+            ItemType::Tools => "(T)",
+            ItemType::Trinket => "(TR)",
+            ItemType::Wallpaper => "(WP)",
+            ItemType::Weapon => "(W)",
+        }
+    }
+}
 
 #[derive(Clone, Debug, Default, Deserialize, EnumString, Eq, PartialEq, Serialize, XnbType)]
 #[strum(ascii_case_insensitive)]
@@ -95,6 +130,31 @@ pub enum ObjectCategory {
     Books = -102,
     SkillBooks = -103,
     Litter = -999,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub enum ObjectOrCategory {
+    Category(ObjectCategory),
+    Item(String),
+}
+
+impl ObjectOrCategory {
+    fn parse_category(i: &str) -> IResult<&str, Self> {
+        let (i, category) = map_res(decimal, |val| {
+            ObjectCategory::from_i32(val).ok_or_else(|| anyhow!("Invalid category {val}"))
+        })(i)?;
+        Ok((i, Self::Category(category)))
+    }
+
+    fn parse_item(i: &str) -> IResult<&str, Self> {
+        let (i, item) = sub_field(i)?;
+        Ok((i, Self::Item(item.to_string())))
+    }
+
+    pub fn parse(i: &str) -> IResult<&str, Self> {
+        let (i, val) = alt((Self::parse_category, Self::parse_item))(i)?;
+        Ok((i, val))
+    }
 }
 
 // This should, perhaps, be moved to `xnb-rs`.

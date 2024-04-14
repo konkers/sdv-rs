@@ -1,54 +1,23 @@
 use anyhow::{anyhow, Result};
 use indexmap::IndexMap;
-use nom::{
-    branch::alt,
-    combinator::{map_parser, map_res},
-    multi::many0,
-    IResult,
-};
-use num_traits::FromPrimitive;
+use nom::{combinator::map_parser, multi::many0, IResult};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, path::Path};
 
-use super::{decimal, field, sub_field, sub_field_value};
-use crate::common::ObjectCategory;
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub enum Taste {
-    Category(ObjectCategory),
-    Item(String),
-}
-
-impl Taste {
-    fn parse_category(i: &str) -> IResult<&str, Self> {
-        let (i, category) = map_res(decimal, |val| {
-            ObjectCategory::from_i32(val).ok_or_else(|| anyhow!("Invalid category {val}"))
-        })(i)?;
-        Ok((i, Self::Category(category)))
-    }
-
-    fn parse_item(i: &str) -> IResult<&str, Self> {
-        let (i, item) = sub_field(i)?;
-        Ok((i, Self::Item(item.to_string())))
-    }
-
-    fn parse(i: &str) -> IResult<&str, Self> {
-        let (i, val) = alt((Self::parse_category, Self::parse_item))(i)?;
-        Ok((i, val))
-    }
-}
+use super::{field, sub_field_value};
+use crate::common::{ObjectCategory, ObjectOrCategory};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Tastes {
     pub response: String,
-    pub tastes: Vec<Taste>,
+    pub tastes: Vec<ObjectOrCategory>,
     categories: HashSet<ObjectCategory>,
     items: HashSet<String>,
 }
 
 impl Tastes {
-    fn parse_tastes(i: &str) -> IResult<&str, Vec<Taste>> {
-        map_parser(field, many0(sub_field_value(Taste::parse)))(i)
+    fn parse_tastes(i: &str) -> IResult<&str, Vec<ObjectOrCategory>> {
+        map_parser(field, many0(sub_field_value(ObjectOrCategory::parse)))(i)
     }
 
     fn parse(i: &str) -> IResult<&str, Self> {
@@ -83,18 +52,20 @@ impl Tastes {
         ))
     }
 
-    fn calculate_lookup_tables(tastes: &[Taste]) -> (HashSet<ObjectCategory>, HashSet<String>) {
+    fn calculate_lookup_tables(
+        tastes: &[ObjectOrCategory],
+    ) -> (HashSet<ObjectCategory>, HashSet<String>) {
         let categories = tastes
             .iter()
             .filter_map(|taste| match taste {
-                Taste::Category(c) => Some(c.clone()),
+                ObjectOrCategory::Category(c) => Some(c.clone()),
                 _ => None,
             })
             .collect();
         let items = tastes
             .iter()
             .filter_map(|taste| match taste {
-                Taste::Item(i) => Some(i.clone()),
+                ObjectOrCategory::Item(i) => Some(i.clone()),
                 _ => None,
             })
             .collect();

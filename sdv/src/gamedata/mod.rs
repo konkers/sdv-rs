@@ -26,6 +26,7 @@ pub mod locale;
 pub mod location;
 pub mod npc_gift_tastes;
 pub mod object;
+pub mod recipe;
 // Needs to be updated for Serde
 // pub mod map;
 // pub mod texture;
@@ -37,6 +38,7 @@ pub use fish::Fish;
 pub use locale::Locale;
 pub use npc_gift_tastes::NpcGiftTastes;
 pub use object::ObjectData;
+pub use recipe::Recipe;
 
 use crate::FromJsonReader;
 
@@ -55,17 +57,17 @@ pub enum ObjectTaste {
     Hate,
 }
 
-fn field_seperator(input: &str) -> IResult<&str, ()> {
+pub(crate) fn field_seperator(input: &str) -> IResult<&str, ()> {
     let (i, _) = opt(tag("/"))(input)?;
     Ok((i, ()))
 }
 
-fn sub_field_seperator(input: &str) -> IResult<&str, ()> {
+pub(crate) fn sub_field_seperator(input: &str) -> IResult<&str, ()> {
     let (i, _) = opt(alt((tag("/"), tag(" "))))(input)?;
     Ok((i, ()))
 }
 
-fn decimal(input: &str) -> IResult<&str, i32> {
+pub(crate) fn decimal(input: &str) -> IResult<&str, i32> {
     map_res(
         recognize(pair(
             opt(char('-')),
@@ -75,7 +77,7 @@ fn decimal(input: &str) -> IResult<&str, i32> {
     )(input)
 }
 
-fn float(input: &str) -> IResult<&str, f32> {
+pub(crate) fn float(input: &str) -> IResult<&str, f32> {
     map_res(
         alt((
             // Case one: .42
@@ -99,13 +101,13 @@ fn float(input: &str) -> IResult<&str, f32> {
     )(input)
 }
 
-fn field(i: &str) -> IResult<&str, &str> {
+pub(crate) fn field(i: &str) -> IResult<&str, &str> {
     let (i, value) = recognize(many0(is_not("/")))(i)?;
     let (i, _) = opt(field_seperator)(i)?;
     Ok((i, value))
 }
 
-pub fn field_value<'a, O2, G>(mut f: G) -> impl FnMut(&'a str) -> IResult<&'a str, O2>
+pub(crate) fn field_value<'a, O2, G>(mut f: G) -> impl FnMut(&'a str) -> IResult<&'a str, O2>
 where
     G: FnMut(&'a str) -> IResult<&'a str, O2>,
 {
@@ -117,13 +119,13 @@ where
     }
 }
 
-fn sub_field(i: &str) -> IResult<&str, &str> {
+pub(crate) fn sub_field(i: &str) -> IResult<&str, &str> {
     let (i, value) = recognize(many1(is_not(" /")))(i)?;
     let (i, _) = opt(sub_field_seperator)(i)?;
     Ok((i, value))
 }
 
-pub fn sub_field_value<'a, O2, G>(mut f: G) -> impl FnMut(&'a str) -> IResult<&'a str, O2>
+pub(crate) fn sub_field_value<'a, O2, G>(mut f: G) -> impl FnMut(&'a str) -> IResult<&'a str, O2>
 where
     G: FnMut(&'a str) -> IResult<&'a str, O2>,
 {
@@ -136,7 +138,7 @@ where
 }
 
 #[allow(dead_code)]
-fn remaining_fields<'a>(i: &'a str) -> IResult<&'a str, Vec<String>> {
+pub(crate) fn remaining_fields<'a>(i: &'a str) -> IResult<&'a str, Vec<String>> {
     let (i, fields) = many0(|i: &'a str| {
         let (i, value) = recognize(many1(is_not("/")))(i)?;
         let (i, _) = opt(field_seperator)(i)?;
@@ -146,7 +148,7 @@ fn remaining_fields<'a>(i: &'a str) -> IResult<&'a str, Vec<String>> {
     Ok((i, fields.iter().map(|s| s.to_string()).collect()))
 }
 
-pub fn load_xnb_object<P: AsRef<Path>, T: DeserializeOwned + XnbType>(
+fn load_xnb_object<P: AsRef<Path>, T: DeserializeOwned + XnbType>(
     game_content_dir: P,
     relative_path: &str,
 ) -> Result<T> {
@@ -160,9 +162,11 @@ pub fn load_xnb_object<P: AsRef<Path>, T: DeserializeOwned + XnbType>(
 pub struct GameDataRaw {
     pub big_craftables: IndexMap<String, BigCraftableData>,
     pub bundles: IndexMap<i32, Bundle>,
+    pub characters: IndexMap<String, CharacterData>,
+    pub cooking_recipies: IndexMap<String, Recipe>,
+    pub crafting_recipies: IndexMap<String, Recipe>,
     pub fish: IndexMap<String, Fish>,
     pub objects: IndexMap<String, ObjectData>,
-    pub characters: IndexMap<String, CharacterData>,
     pub npc_gift_tastes: IndexMap<String, NpcGiftTastes>,
     pub locations: IndexMap<String, LocationData>,
 }
@@ -172,9 +176,11 @@ impl From<&GameData> for GameDataRaw {
         Self {
             big_craftables: data.big_craftables.clone(),
             bundles: data.bundles.clone(),
+            characters: data.characters.clone(),
+            cooking_recipies: data.cooking_recipies.clone(),
+            crafting_recipies: data.crafting_recipies.clone(),
             fish: data.fish.clone(),
             objects: data.objects.clone(),
-            characters: data.characters.clone(),
             npc_gift_tastes: data.npc_gift_tastes.clone(),
             locations: data.locations.clone(),
         }
@@ -185,9 +191,11 @@ impl From<&GameData> for GameDataRaw {
 pub struct GameData {
     pub big_craftables: IndexMap<String, BigCraftableData>,
     pub bundles: IndexMap<i32, Bundle>,
+    pub characters: IndexMap<String, CharacterData>,
+    pub cooking_recipies: IndexMap<String, Recipe>,
+    pub crafting_recipies: IndexMap<String, Recipe>,
     pub fish: IndexMap<String, Fish>,
     pub objects: IndexMap<String, ObjectData>,
-    pub characters: IndexMap<String, CharacterData>,
     pub npc_gift_tastes: IndexMap<String, NpcGiftTastes>,
     pub locations: IndexMap<String, LocationData>,
     object_name_map: HashMap<String, String>,
@@ -215,9 +223,11 @@ impl GameData {
         Self {
             big_craftables: raw.big_craftables,
             bundles: raw.bundles,
+            characters: raw.characters,
+            cooking_recipies: raw.cooking_recipies,
+            crafting_recipies: raw.crafting_recipies,
             fish: raw.fish,
             objects: raw.objects,
-            characters: raw.characters,
             npc_gift_tastes: raw.npc_gift_tastes,
             locations: raw.locations,
             object_name_map,
@@ -237,6 +247,14 @@ impl GameData {
 
         let characters = load_xnb_object(&game_content_dir, "Data/Characters.xnb")?;
 
+        let mut cooking_recipies_file = data_dir.clone();
+        cooking_recipies_file.push("CookingRecipes.xnb");
+        let cooking_recipies = Recipe::load_cooking(&cooking_recipies_file)?;
+
+        let mut crafting_recipies_file = data_dir.clone();
+        crafting_recipies_file.push("CraftingRecipes.xnb");
+        let crafting_recipies = Recipe::load_crafting(&crafting_recipies_file)?;
+
         let mut fish_file = data_dir.clone();
         fish_file.push("Fish.xnb");
         let fish = Fish::load(&fish_file)?;
@@ -251,9 +269,11 @@ impl GameData {
         Ok(Self::from_game_data_raw(GameDataRaw {
             big_craftables,
             bundles,
+            characters,
+            cooking_recipies,
+            crafting_recipies,
             fish,
             objects,
-            characters,
             npc_gift_tastes,
             locations,
         }))

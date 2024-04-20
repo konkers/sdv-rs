@@ -1,9 +1,7 @@
-
 use indexmap::IndexMap;
 
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
-
 
 use xnb::{xnb_name, XnbType};
 
@@ -58,7 +56,10 @@ pub struct SpawnFishData {
     pub max_distance_from_shore: i32,
     pub apply_daily_luck: bool,
     pub curiousity_lure_buff: f32,
+    pub specific_bait_buff: f32,
+    pub specific_bait_multiplier: f32,
     pub catch_limit: i32,
+    pub can_use_training_rod: Option<bool>,
     pub is_boss_fish: bool,
     pub set_flag_on_catch: Option<String>,
     pub require_magic_bait: bool,

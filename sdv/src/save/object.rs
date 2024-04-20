@@ -269,7 +269,7 @@ impl Object {
 
     pub fn from_gamedata(object: &gamedata::ObjectData, quantity: i32) -> Object {
         Object {
-            category: object.category.clone(),
+            category: object.category,
             name: Some(object.name.clone()),
             parent_sheet_index: Some(object.sprite_index),
             display_name: object.display_name.clone(),

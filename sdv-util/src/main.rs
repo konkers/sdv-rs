@@ -953,7 +953,7 @@ fn cmd_dump_objects(opt: &DumpOpts) -> Result<()> {
     }
 
     let cat_set: HashSet<ObjectCategory> =
-        HashSet::from_iter(data.objects.iter().map(|o| o.1.category.clone()));
+        HashSet::from_iter(data.objects.iter().map(|o| o.1.category));
     let cats: Vec<ObjectCategory> = cat_set.iter().cloned().collect();
 
     println!("types: {:?}", &cats);

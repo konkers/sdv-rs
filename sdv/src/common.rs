@@ -77,6 +77,7 @@ pub enum ObjectType {
 
 #[derive(
     Clone,
+    Copy,
     Default,
     Deserialize_repr,
     EnumString,
@@ -129,6 +130,7 @@ pub enum ObjectCategory {
     Trinket = -101,
     Books = -102,
     SkillBooks = -103,
+    WildSeed = -777,
     Litter = -999,
 }
 
@@ -154,6 +156,13 @@ impl ObjectOrCategory {
     pub fn parse(i: &str) -> IResult<&str, Self> {
         let (i, val) = alt((Self::parse_category, Self::parse_item))(i)?;
         Ok((i, val))
+    }
+
+    pub fn id(&self) -> String {
+        match self {
+            ObjectOrCategory::Category(category) => (*category as i32).to_string(),
+            ObjectOrCategory::Item(id) => id.clone(),
+        }
     }
 }
 

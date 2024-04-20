@@ -315,9 +315,22 @@ pub struct Player {
     pub deepest_mine_level: i32,
     pub fish_caught: IndexMap<String, FishCaught>,
     pub basic_shipped: IndexMap<String, i32>,
+    pub cooking_recipes: IndexMap<String, i32>,
+    pub recipes_cooked: IndexMap<String, i32>,
+    pub crafting_recipes: IndexMap<String, i32>,
     pub professions: IndexSet<Profession>,
     pub experience: IndexMap<Skill, i32>,
     pub items: Vec<Object>,
+}
+
+fn get_int_map<'a, 'input: 'a>(
+    node: Node<'a, 'input>,
+    node_name: &str,
+) -> SaveResult<'a, 'input, IndexMap<String, i32>> {
+    let node = node.child(node_name).try_into()?;
+    let map = map_from_node(node, "string", |node| node.child("int").try_into())?;
+
+    Ok(map)
 }
 
 impl Player {
@@ -347,10 +360,10 @@ impl Player {
                 },
             );
         }
-        let basic_shipped_node = node.child("basicShipped").try_into()?;
-        let basic_shipped = map_from_node(basic_shipped_node, "string", |node| {
-            node.child("int").try_into()
-        })?;
+        let basic_shipped = get_int_map(node, "basicShipped")?;
+        let cooking_recipes = get_int_map(node, "cookingRecipes")?;
+        let recipes_cooked = get_int_map(node, "recipesCooked")?;
+        let crafting_recipes = get_int_map(node, "craftingRecipes")?;
 
         let professions: SaveResult<IndexSet<Profession>> = node
             .child("professions")
@@ -384,6 +397,9 @@ impl Player {
             deepest_mine_level,
             fish_caught,
             basic_shipped,
+            cooking_recipes,
+            recipes_cooked,
+            crafting_recipes,
             professions: professions?,
             experience,
             items,

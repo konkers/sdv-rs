@@ -58,7 +58,7 @@ impl Tastes {
         let categories = tastes
             .iter()
             .filter_map(|taste| match taste {
-                ObjectOrCategory::Category(c) => Some(c.clone()),
+                ObjectOrCategory::Category(c) => Some(*c),
                 _ => None,
             })
             .collect();

@@ -203,6 +203,14 @@ pub struct GameData {
 
 impl GameData {
     fn from_game_data_raw(mut raw: GameDataRaw) -> Self {
+        raw.cooking_recipies
+            .iter_mut()
+            .for_each(|(name, object)| object.name = name.clone());
+
+        raw.crafting_recipies
+            .iter_mut()
+            .for_each(|(name, object)| object.name = name.clone());
+
         // Populate big_craftable IDs.
         raw.big_craftables
             .iter_mut()

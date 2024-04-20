@@ -14,7 +14,7 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{
     collections::HashMap,
     io::{Read, Write},
-    path::Path,
+    path::{Path, PathBuf},
 };
 use xnb::XnbType;
 
@@ -199,6 +199,7 @@ pub struct GameData {
     pub npc_gift_tastes: IndexMap<String, NpcGiftTastes>,
     pub locations: IndexMap<String, LocationData>,
     object_name_map: HashMap<String, String>,
+    content_dir: Option<PathBuf>,
 }
 
 impl GameData {
@@ -239,6 +240,7 @@ impl GameData {
             npc_gift_tastes: raw.npc_gift_tastes,
             locations: raw.locations,
             object_name_map,
+            content_dir: None,
         }
     }
 
@@ -274,7 +276,7 @@ impl GameData {
         npc_gift_tastes_file.push("NPCGiftTastes.xnb");
         let npc_gift_tastes = NpcGiftTastes::load(&npc_gift_tastes_file)?;
 
-        Ok(Self::from_game_data_raw(GameDataRaw {
+        let mut game_data = Self::from_game_data_raw(GameDataRaw {
             big_craftables,
             bundles,
             characters,
@@ -284,7 +286,10 @@ impl GameData {
             objects,
             npc_gift_tastes,
             locations,
-        }))
+        });
+        game_data.content_dir = Some(game_content_dir.clone());
+
+        Ok(game_data)
     }
 
     pub fn to_json_writer<W: Write>(&self, writer: W) -> Result<()> {
@@ -311,19 +316,32 @@ impl GameData {
         self.get_object(id)
     }
 
-    // pub fn load_map<P: AsRef<Path>>(&self, path: P) -> Result<Map> {
-    //     let mut map_path = self.game_content_dir.clone();
-    //     map_path.push(path);
+    pub fn load_map<P: AsRef<Path>>(&self, path: P) -> Result<xnb::xtile::Map> {
+        let Some(content_dir) = &self.content_dir else {
+            return Err(anyhow!(
+                "Can't load map from game data not loaded from content directory"
+            ));
+        };
 
-    //     Map::load(map_path)
-    // }
+        let mut map_path = content_dir.clone();
+        map_path.push(path);
 
-    // pub fn load_texture<P: AsRef<Path>>(&self, path: P) -> Result<Texture> {
-    //     let mut texture_path = self.game_content_dir.clone();
-    //     texture_path.push(path);
+        let data = std::fs::read(map_path)?;
+        xnb::map_from_bytes(&data)
+    }
 
-    //     Texture::load(texture_path)
-    // }
+    pub fn load_texture<P: AsRef<Path>>(&self, path: P) -> Result<xnb::xna::Texture2D> {
+        let Some(content_dir) = &self.content_dir else {
+            return Err(anyhow!(
+                "Can't load texture from game data not loaded from content directory"
+            ));
+        };
+        let mut texture_path = content_dir.clone();
+        texture_path.push(path);
+
+        let data = std::fs::read(texture_path)?;
+        xnb::from_bytes::<xnb::xna::Texture2D>(&data)
+    }
 
     pub fn lookup_npc_taste_for_object(
         &self,

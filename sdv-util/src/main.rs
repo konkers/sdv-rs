@@ -27,9 +27,8 @@ use termimad::{rgb, Alignment, MadSkin};
 use walkdir::{DirEntry, WalkDir};
 use xnb::xna::Texture2D;
 
-// Needs to be updated for serde.
-// mod render_map;
-// use render_map::cmd_render_map;
+mod render_map;
+use render_map::cmd_render_map;
 
 #[derive(Debug, StructOpt)]
 #[cfg(any(windows, target_os = "macos"))]
@@ -189,7 +188,7 @@ enum Opt {
     Food(GameAndSaveOpt),
     //  Geodes(GameAndSaveOpt),
     Items(ItemsOpt),
-    //RenderMap(RenderMapOpt),
+    RenderMap(RenderMapOpt),
     Package(PackageOpt),
     Perfection(GameAndSaveOpt),
     Todo(GameAndSaveOpt),
@@ -1127,7 +1126,7 @@ fn main() -> Result<()> {
         Opt::Items(o) => cmd_items(&o)?,
         Opt::Package(o) => cmd_package(&o)?,
         Opt::Perfection(o) => cmd_perfection(&o)?,
-        //Opt::RenderMap(o) => cmd_render_map(&o)?,
+        Opt::RenderMap(o) => cmd_render_map(&o)?,
         Opt::Todo(o) => cmd_todo(&o)?,
     }
 

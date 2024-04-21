@@ -3,4 +3,4 @@ resolver = "2"
 members = ["sdv", "sdv-util"]
 
 [workspace.dependencies]
-xnb = { git = "https://github.com/konkers/xnb-rs", rev = "93cb7ea0b025922af3c7a5ce7ba4b2c124b89df4" }
+xnb = { git = "https://github.com/konkers/xnb-rs", rev = "ca104c8f3a4b8fc44300fa67497a4ce0326a0018" }

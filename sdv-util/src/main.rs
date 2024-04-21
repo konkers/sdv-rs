@@ -18,6 +18,8 @@ use sdv::{
     analyzer::perfection::analyze_perfection,
     common::{DayOfWeek, ObjectCategory, Point},
     gamedata::{Fish, GameData, Locale, ObjectTaste},
+    predictor,
+    rng::HashedSeedGenerator,
     save::Object,
     SaveGame,
 };
@@ -112,6 +114,14 @@ struct DumpOpts {
 }
 
 #[derive(Debug, StructOpt)]
+struct DumpMapOpts {
+    #[structopt(flatten)]
+    dump: DumpOpts,
+
+    map: String,
+}
+
+#[derive(Debug, StructOpt)]
 struct PackageOpts {
     #[structopt(flatten)]
     content: GameContentLoc,
@@ -147,6 +157,7 @@ enum DumpOpt {
     Fish(DumpOpts),
     Locale(DumpOpts),
     Locations(DumpOpts),
+    Map(DumpMapOpts),
     NpcGiftTastes(DumpOpts),
     Objects(DumpOpts),
     Save(SaveFileLoc),
@@ -172,12 +183,31 @@ enum PackageOpt {
 }
 
 #[derive(Debug, StructOpt)]
-#[allow(unused)]
 struct RenderMapOpt {
     #[structopt(flatten)]
     content: GameContentLoc,
 
     map_name: String,
+}
+
+#[derive(Debug, StructOpt)]
+struct BubblesOpt {
+    #[structopt(flatten)]
+    content: GameContentLoc,
+
+    #[structopt(long)]
+    map_name: String,
+
+    #[structopt(long)]
+    days_played: u32,
+
+    #[structopt(long)]
+    seed: i32,
+}
+
+#[derive(Debug, StructOpt)]
+enum PredictOpt {
+    Bubbles(BubblesOpt),
 }
 
 #[derive(Debug, StructOpt)]
@@ -191,6 +221,7 @@ enum Opt {
     RenderMap(RenderMapOpt),
     Package(PackageOpt),
     Perfection(GameAndSaveOpt),
+    Predict(PredictOpt),
     Todo(GameAndSaveOpt),
 }
 
@@ -960,6 +991,22 @@ fn cmd_dump_objects(opt: &DumpOpts) -> Result<()> {
     Ok(())
 }
 
+fn cmd_dump_map(opt: &DumpMapOpts) -> Result<()> {
+    let data = GameData::from_content_dir(opt.dump.content.get()?)?;
+    let map = data.load_map(&opt.map)?;
+
+    match opt.dump.format {
+        Format::Text => {
+            println!("{:#?}", map);
+        }
+        Format::Json => {
+            //   println!("{}", serde_json::to_string_pretty(&map)?);
+        }
+    }
+
+    Ok(())
+}
+
 fn cmd_dump_npc_gift_tastes(opt: &DumpOpts) -> Result<()> {
     let data = GameData::from_content_dir(opt.content.get()?)?;
 
@@ -991,6 +1038,7 @@ fn cmd_dump(opt: &DumpOpt) -> Result<()> {
         DumpOpt::Locale(o) => cmd_dump_locale(o),
         DumpOpt::Locations(o) => cmd_dump_locations(o),
         DumpOpt::Objects(o) => cmd_dump_objects(o),
+        DumpOpt::Map(o) => cmd_dump_map(o),
         DumpOpt::NpcGiftTastes(o) => cmd_dump_npc_gift_tastes(o),
         DumpOpt::Save(o) => cmd_dump_save(o),
     }
@@ -1112,6 +1160,29 @@ fn cmd_perfection(opt: &GameAndSaveOpt) -> Result<()> {
     Ok(())
 }
 
+fn cmd_predict_bubbles(opt: &BubblesOpt) -> Result<()> {
+    let data = GameData::from_content_dir(opt.content.get()?)?;
+    let map = data.load_map(&opt.map_name)?;
+    let bubbles = predictor::bubbles::calculate_bubbles::<HashedSeedGenerator>(
+        &map,
+        opt.days_played,
+        opt.seed as u32,
+    )?;
+    for bubble in bubbles {
+        println!(
+            "(x:{} y:{}) {}",
+            bubble.location.x, bubble.location.y, bubble.span
+        );
+    }
+    Ok(())
+}
+
+fn cmd_predict(opt: &PredictOpt) -> Result<()> {
+    match opt {
+        PredictOpt::Bubbles(o) => cmd_predict_bubbles(o),
+    }
+}
+
 fn main() -> Result<()> {
     env_logger::init();
 
@@ -1126,6 +1197,7 @@ fn main() -> Result<()> {
         Opt::Items(o) => cmd_items(&o)?,
         Opt::Package(o) => cmd_package(&o)?,
         Opt::Perfection(o) => cmd_perfection(&o)?,
+        Opt::Predict(o) => cmd_predict(&o)?,
         Opt::RenderMap(o) => cmd_render_map(&o)?,
         Opt::Todo(o) => cmd_todo(&o)?,
     }

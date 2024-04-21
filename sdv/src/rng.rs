@@ -15,9 +15,58 @@
 //! [`Microsoft's .NET Reference Source`]: http://referencesource.microsoft.com/#mscorlib/system/random.cs
 
 use anyhow::{anyhow, Result};
+use xxhash_rust::xxh32::Xxh32;
 
 const SEED: i32 = 161803398;
 const SEED_ARRAY_LEN: usize = 56;
+
+pub trait SeedGenerator {
+    fn generate_seed(a: f64, b: f64, c: f64, d: f64, e: f64) -> i32;
+
+    fn generate_day_save_seed(days_played: u32, game_id: u32, a: f64, b: f64, c: f64) -> i32 {
+        Self::generate_seed(days_played as f64, (game_id / 2) as f64, a, b, c)
+    }
+}
+
+pub struct LegacySeedGenerator {}
+impl SeedGenerator for LegacySeedGenerator {
+    fn generate_seed(a: f64, b: f64, c: f64, d: f64, e: f64) -> i32 {
+        ((a % 2147483647.0
+            + b % 2147483647.0
+            + c % 2147483647.0
+            + d % 2147483647.0
+            + e % 2147483647.0)
+            % 2147483647.0) as i32
+
+        //            		return Game1.hash.GetDeterministicHashCode((int)(seedA % 2147483647.0), (int)(seedB % 2147483647.0), (int)(seedC % 2147483647.0), (int)(seedD % 2147483647.0), (int)(seedE % 2147483647.0));
+    }
+}
+
+pub struct HashedSeedGenerator {}
+
+impl HashedSeedGenerator {
+    fn get_deterministic_hash_code(values: &[i32]) -> i32 {
+        let mut hasher = Xxh32::new(0);
+
+        for value in values {
+            let data = value.to_le_bytes();
+            hasher.update(&data);
+        }
+        hasher.digest() as i32
+    }
+}
+
+impl SeedGenerator for HashedSeedGenerator {
+    fn generate_seed(a: f64, b: f64, c: f64, d: f64, e: f64) -> i32 {
+        Self::get_deterministic_hash_code(&[
+            (a % 2147483647.0) as i32,
+            (b % 2147483647.0) as i32,
+            (c % 2147483647.0) as i32,
+            (d % 2147483647.0) as i32,
+            (e % 2147483647.0) as i32,
+        ])
+    }
+}
 
 /// .NET Random Number Generator
 pub struct Rng {
@@ -129,6 +178,12 @@ impl Rng {
     /// Have 31 bits of "entropy".
     pub fn next_double(&mut self) -> f64 {
         self.sample()
+    }
+
+    /// Pull a boolean sample from the [Rng].
+    ///
+    pub fn next_bool(&mut self) -> bool {
+        self.next_double() < 0.5
     }
 
     /// Pull a value with maximum value from the [Rng].

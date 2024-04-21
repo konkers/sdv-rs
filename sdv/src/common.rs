@@ -1,10 +1,11 @@
 use std::convert::{TryFrom, TryInto};
+use std::fmt::Display;
 
 use anyhow::{anyhow, Error, Result};
 use indexmap::IndexMap;
 use nom::{branch::alt, bytes::complete::tag, combinator::map_res, combinator::value, IResult};
 use num_derive::FromPrimitive;
-use num_traits::FromPrimitive;
+use num_traits::{FromPrimitive, Num};
 use roxmltree::Node;
 use serde::{Deserialize, Serialize};
 use serde_repr::Deserialize_repr;
@@ -12,6 +13,7 @@ use serde_repr::Serialize_repr;
 use strum::EnumString;
 use xnb::xnb_name;
 
+use crate::gamedata::sub_field_value;
 use crate::gamedata::{decimal, sub_field};
 use crate::save::{Finder, NodeFinder, SaveError, SaveResult};
 
@@ -230,10 +232,119 @@ pub struct XnaRectangle {
     height: i32,
 }
 
+enum BorderPhase {
+    Top,
+    Right,
+    Bottom,
+    Left,
+    Done,
+}
+
+pub struct BorderIterator<'a, T: Num + From<i8> + Clone + Copy> {
+    rect: &'a Rect<T>,
+    phase: BorderPhase,
+    next_point: Point<T>,
+}
+
+impl<'a, T: Num + From<i8> + Clone + Copy + std::cmp::PartialOrd> Iterator
+    for BorderIterator<'a, T>
+{
+    type Item = Point<T>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            match self.phase {
+                BorderPhase::Top => {
+                    let point = self.next_point;
+
+                    let mut next_point = self.next_point;
+                    next_point.x = next_point.x + T::from(1i8);
+                    if next_point.x == self.rect.p2.x {
+                        self.phase = BorderPhase::Right;
+                        continue;
+                    }
+
+                    self.next_point = next_point;
+                    return Some(point);
+                }
+                BorderPhase::Right => {
+                    let point = self.next_point;
+
+                    let mut next_point = self.next_point;
+                    next_point.y = next_point.y + T::from(1i8);
+                    if next_point.y == self.rect.p2.y {
+                        self.phase = BorderPhase::Bottom;
+                        continue;
+                    }
+
+                    self.next_point = next_point;
+                    return Some(point);
+                }
+                BorderPhase::Bottom => {
+                    let point = self.next_point;
+
+                    let mut next_point = self.next_point;
+                    next_point.x = next_point.x - T::from(1i8);
+                    if next_point.x < self.rect.p1.x {
+                        self.phase = BorderPhase::Left;
+                        continue;
+                    }
+
+                    self.next_point = next_point;
+                    return Some(point);
+                }
+                BorderPhase::Left => {
+                    let point = self.next_point;
+
+                    let mut next_point = self.next_point;
+                    next_point.y = next_point.y - T::from(1i8);
+                    if next_point.y < self.rect.p1.y {
+                        self.phase = BorderPhase::Done;
+                        continue;
+                    }
+
+                    self.next_point = next_point;
+                    return Some(point);
+                }
+                BorderPhase::Done => return None,
+            }
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Serialize, PartialEq)]
 pub struct Rect<T> {
     p1: Point<T>,
     p2: Point<T>,
+}
+
+impl<T: Num + Clone + Copy> Rect<T> {
+    pub fn from_xywh(x: T, y: T, w: T, h: T) -> Self {
+        let p1 = Point { x, y };
+        let p2 = Point { x: x + w, y: y + h };
+        Self { p1, p2 }
+    }
+
+    pub fn width(&self) -> T {
+        self.p2.x - self.p1.x
+    }
+
+    pub fn inflate(&mut self, dx: T, dy: T) {
+        self.p1.x = self.p1.x - dx;
+        self.p1.y = self.p1.y - dy;
+        self.p2.x = self.p2.x + dx;
+        self.p2.y = self.p2.y + dy;
+    }
+}
+
+impl<T: Num + Clone + From<i8> + Copy> Rect<T> {
+    pub fn border_points(&self) -> BorderIterator<'_, T> {
+        BorderIterator {
+            rect: self,
+            phase: BorderPhase::Top,
+            next_point: self.p1,
+        }
+    }
 }
 
 impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for Rect<i32> {
@@ -251,6 +362,45 @@ impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for Rect<i32> {
                 y: y + height,
             },
         })
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct TimeSpan {
+    pub start: i32,
+    pub end: i32,
+}
+
+impl TimeSpan {
+    pub(crate) fn parse(i: &str) -> IResult<&str, Self> {
+        let (i, start) = sub_field_value(decimal)(i)?;
+        let (i, end) = sub_field_value(decimal)(i)?;
+
+        Ok((i, TimeSpan { start, end }))
+    }
+
+    fn fmt_time(f: &mut std::fmt::Formatter<'_>, time: i32) -> std::fmt::Result {
+        let time = time % 2400;
+        let (time, meridiem) = if time < 1200 {
+            (time, "am")
+        } else if time < 1300 {
+            (time, "pm")
+        } else {
+            (time - 1200, "pm")
+        };
+
+        let hour = time / 100;
+        let hour = if hour == 0 { 12 } else { hour };
+        let min = time % 100;
+        f.write_fmt(format_args!("{hour:02}:{min:02}{meridiem}"))
+    }
+}
+
+impl Display for TimeSpan {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Self::fmt_time(f, self.start)?;
+        f.write_str("-")?;
+        Self::fmt_time(f, self.end)
     }
 }
 
@@ -437,5 +587,58 @@ pub enum ObjectId {
 impl std::cmp::PartialEq<String> for ObjectId {
     fn eq(&self, other: &String) -> bool {
         *other == (*self as i32).to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    fn p<T>(x: T, y: T) -> Point<T> {
+        Point { x, y }
+    }
+
+    #[test]
+    fn one_by_one_boarder_iterator_works_correctly() {
+        let points: Vec<_> = Rect::from_xywh(1, 4, 1, 1).border_points().collect();
+        assert_eq!(points, vec![]);
+    }
+
+    #[test]
+    fn one_by_two_boarder_iterator_works_correctly() {
+        let points: Vec<_> = Rect::from_xywh(1, 4, 1, 2).border_points().collect();
+        assert_eq!(points, vec![p(1, 4), p(1, 5)]);
+    }
+
+    #[test]
+    fn two_by_two_boarder_iterator_works_correctly() {
+        let points: Vec<_> = Rect::from_xywh(1, 4, 2, 2).border_points().collect();
+        assert_eq!(points, vec![p(1, 4), p(2, 4), p(2, 5), p(1, 5)]);
+    }
+
+    #[test]
+    fn three_by_two_boarder_iterator_works_correctly() {
+        let points: Vec<_> = Rect::from_xywh(1, 4, 3, 2).border_points().collect();
+        assert_eq!(
+            points,
+            vec![p(1, 4), p(2, 4), p(3, 4), p(3, 5), p(2, 5), p(1, 5)]
+        );
+    }
+
+    #[test]
+    fn three_by_three_boarder_iterator_works_correctly() {
+        let points: Vec<_> = Rect::from_xywh(1, 4, 3, 3).border_points().collect();
+        assert_eq!(
+            points,
+            vec![
+                p(1, 4),
+                p(2, 4),
+                p(3, 4),
+                p(3, 5),
+                p(3, 6),
+                p(2, 6),
+                p(1, 6),
+                p(1, 5)
+            ]
+        );
     }
 }

@@ -20,6 +20,8 @@ strum = { version = "0.24", features = ["derive"] }
 tsify = { version = "0.4.5", optional = true }
 wasm-bindgen = { version = "0.2.92", optional = true }
 xnb = { workspace = true }
+xxhash-rust = { version = "0.8.10", features = ["xxh32"] }
+log = "0.4.21"
 
 [features]
 default = []

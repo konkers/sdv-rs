@@ -3,14 +3,13 @@ use indexmap::IndexMap;
 use nom::{branch::alt, bytes::complete::tag, combinator::value, multi::many1, IResult};
 use serde::{Deserialize, Serialize};
 use std::{
-    fmt::Display,
     fs::File,
     io::{BufReader, Read},
     path::Path,
 };
 
 use super::{decimal, field, field_value, float, sub_field_value};
-use crate::common::{Season, Weather};
+use crate::common::{Season, TimeSpan, Weather};
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub enum FishBehavior {
@@ -64,46 +63,6 @@ impl BaitAffinity {
 
     fn parse_list(i: &str) -> IResult<&str, Vec<Self>> {
         alt((value(vec![], tag("-1")), many1(BaitAffinity::parse)))(i)
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-pub struct TimeSpan {
-    start: i32,
-    end: i32,
-}
-
-impl TimeSpan {
-    fn parse(i: &str) -> IResult<&str, Self> {
-        let (i, start) = sub_field_value(decimal)(i)?;
-        let (i, end) = sub_field_value(decimal)(i)?;
-
-        Ok((i, TimeSpan { start, end }))
-    }
-
-    fn fmt_time(f: &mut std::fmt::Formatter<'_>, time: i32) -> std::fmt::Result {
-        let time = time % 2400;
-        let (time, meridiem) = if time < 1200 {
-            (time, "am")
-        } else if time < 1300 {
-            (time, "pm")
-        } else {
-            (time - 1200, "pm")
-        };
-        f.write_fmt(format_args!(
-            "{:02}:{:02}{}",
-            time / 100,
-            time % 100,
-            meridiem
-        ))
-    }
-}
-
-impl Display for TimeSpan {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Self::fmt_time(f, self.start)?;
-        f.write_str("-")?;
-        Self::fmt_time(f, self.end)
     }
 }
 

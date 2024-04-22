@@ -1,8 +1,6 @@
-
 use indexmap::IndexMap;
 
 use serde::{Deserialize, Serialize};
-
 
 use xnb::{xnb_name, XnbType};
 

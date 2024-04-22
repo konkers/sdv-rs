@@ -47,7 +47,7 @@ impl SeedGenerator for LegacySeedGenerator {
 pub struct HashedSeedGenerator {}
 
 impl HashedSeedGenerator {
-    fn get_deterministic_hash_code(values: &[i32]) -> i32 {
+    pub fn get_deterministic_hash_code(values: &[i32]) -> i32 {
         let mut hasher = Xxh32::new(0);
 
         for value in values {

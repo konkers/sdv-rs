@@ -18,9 +18,12 @@ use sdv::{
     analyzer::perfection::analyze_perfection,
     common::{DayOfWeek, ObjectCategory, Point},
     gamedata::{Fish, GameData, Locale, ObjectTaste},
+    item_id,
     predictor::{
         self,
+        garbage::{predict_garbage, GarbageCan, GarbageCanLocation},
         geode::{predict_single_geode, Geode, GeodeType},
+        PredictionGameState,
     },
     rng::HashedSeedGenerator,
     save::Object,
@@ -28,6 +31,7 @@ use sdv::{
 };
 use serde::Serialize;
 use structopt::{clap::arg_enum, StructOpt};
+use strum::IntoEnumIterator;
 use termimad::{rgb, Alignment, MadSkin};
 use walkdir::{DirEntry, WalkDir};
 use xnb::xna::Texture2D;
@@ -127,6 +131,7 @@ enum DumpOpt {
     Bundles(DumpOpts),
     Characters(DumpOpts),
     Fish(DumpOpts),
+    Garbage(DumpOpts),
     Locale(DumpOpts),
     Locations(DumpOpts),
     Map(DumpMapOpts),
@@ -201,6 +206,7 @@ struct GeodesOpt {
 #[derive(Debug, StructOpt)]
 enum PredictOpt {
     Bubbles(BubblesOpt),
+    Garbage(GameContentLoc),
     Geode(GeodesOpt),
 }
 
@@ -868,7 +874,7 @@ fn cmd_todo(opt: &GameAndSaveOpt) -> Result<()> {
     Ok(())
 }
 
-fn dump_data<T: std::fmt::Debug + Serialize>(
+fn dump_data_map<T: std::fmt::Debug + Serialize>(
     opt: &DumpOpts,
     data: &IndexMap<String, T>,
 ) -> Result<()> {
@@ -886,16 +892,29 @@ fn dump_data<T: std::fmt::Debug + Serialize>(
     Ok(())
 }
 
+fn dump_data<T: std::fmt::Debug + Serialize>(opt: &DumpOpts, data: &T) -> Result<()> {
+    match opt.format {
+        Format::Text => {
+            println!("{:?}", &data);
+        }
+        Format::Json => {
+            println!("{}", serde_json::to_string_pretty(&data)?);
+        }
+    }
+
+    Ok(())
+}
+
 fn cmd_dump_cooking_recipes(opt: &DumpOpts) -> Result<()> {
     let data = GameData::from_content_dir(opt.content.get()?)?;
 
-    dump_data(opt, &data.cooking_recipies)
+    dump_data_map(opt, &data.cooking_recipies)
 }
 
 fn cmd_dump_crafting_recipes(opt: &DumpOpts) -> Result<()> {
     let data = GameData::from_content_dir(opt.content.get()?)?;
 
-    dump_data(opt, &data.crafting_recipies)
+    dump_data_map(opt, &data.crafting_recipies)
 }
 
 fn cmd_dump_big_craftables(opt: &DumpOpts) -> Result<()> {
@@ -940,6 +959,12 @@ fn cmd_dump_fish(opt: &DumpOpts) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn cmd_dump_garbage(opt: &DumpOpts) -> Result<()> {
+    let data = GameData::from_content_dir(opt.content.get()?)?;
+
+    dump_data(opt, &data.garbage_cans)
 }
 
 fn cmd_dump_locale(opt: &DumpOpts) -> Result<()> {
@@ -1035,6 +1060,7 @@ fn cmd_dump(opt: &DumpOpt) -> Result<()> {
         DumpOpt::Bundles(o) => cmd_dump_bundles(o),
         DumpOpt::Characters(o) => cmd_dump_characters(o),
         DumpOpt::Fish(o) => cmd_dump_fish(o),
+        DumpOpt::Garbage(o) => cmd_dump_garbage(o),
         DumpOpt::Locale(o) => cmd_dump_locale(o),
         DumpOpt::Locations(o) => cmd_dump_locations(o),
         DumpOpt::Objects(o) => cmd_dump_objects(o),
@@ -1177,6 +1203,52 @@ fn cmd_predict_bubbles(opt: &BubblesOpt) -> Result<()> {
     Ok(())
 }
 
+fn cmd_predict_garbage(opt: &GameContentLoc) -> Result<()> {
+    let data = GameData::from_content_dir(opt.get()?)?;
+    let state = PredictionGameState {
+        game_id: 254546202,
+        days_played: 1,
+        daily_luck: 0.0999,
+        has_trash_book: false,
+        trash_cans_checked: 0,
+        qi_beans_quest_active: false,
+        has_cc_movie_theater_mail: false,
+        has_cc_movie_theater_joja_mail: false,
+        seen_event_191383: false,
+    };
+    let cans = GarbageCanLocation::iter()
+        .map(|location| GarbageCan::new(location, &data.garbage_cans, &state))
+        .collect::<Result<Vec<_>>>()?;
+    println!("{:?}", item_id!("RANDOM_BASE_SEASON_ITEM"));
+    let special_items = HashMap::from([
+        (item_id!("RANDOM_BASE_SEASON_ITEM"), "Random season item"),
+        (item_id!("DISH_OF_THE_DAY"), "Dish of the Day"),
+    ]);
+
+    for can in &cans {
+        if let Some((reward, min_luck)) = predict_garbage::<HashedSeedGenerator>(can, &state)? {
+            if let Ok(item) = data.get_object_by_id(&reward.item) {
+                println!(
+                    "{}: {} {} (min luck {})",
+                    can.location, reward.quantity, item.name, min_luck
+                );
+            } else if let Some(name) = special_items.get(&reward.item) {
+                println!(
+                    "{}: {} {} (min luck {})",
+                    can.location, reward.quantity, name, min_luck
+                );
+            } else {
+                println!(
+                    "{}: {} {:?} (min luck {})",
+                    can.location, reward.quantity, reward.item, min_luck
+                );
+            }
+        }
+    }
+
+    Ok(())
+}
+
 fn cmd_predict_geode(opt: &GeodesOpt) -> Result<()> {
     let data = GameData::from_content_dir(opt.content.get()?)?;
     let geode = Geode::new(opt.geode_type, &data)?;
@@ -1199,6 +1271,7 @@ fn cmd_predict_geode(opt: &GeodesOpt) -> Result<()> {
 fn cmd_predict(opt: &PredictOpt) -> Result<()> {
     match opt {
         PredictOpt::Bubbles(o) => cmd_predict_bubbles(o),
+        PredictOpt::Garbage(o) => cmd_predict_garbage(o),
         PredictOpt::Geode(o) => cmd_predict_geode(o),
     }
 }

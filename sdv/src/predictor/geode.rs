@@ -1,19 +1,19 @@
-use std::{
-    cmp::max,
-    convert::{TryFrom, TryInto},
-};
+use std::convert::{TryFrom, TryInto};
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use num_derive::FromPrimitive;
 use strum::{EnumIter, EnumString};
 
 use crate::{
-    common::{items, ItemId},
+    common::items,
     gamedata::object::ObjectGeodeDropData,
     generate_seed,
+    predictor::Drop,
     rng::{Rng, SeedGenerator},
     GameData,
 };
+
+use super::DropReward;
 
 #[derive(Clone, Copy, Debug, EnumIter, EnumString, Eq, FromPrimitive, Hash, PartialEq)]
 pub enum GeodeType {
@@ -23,18 +23,6 @@ pub enum GeodeType {
     OmniGeode = 749,
     ArtifactTrove = 275,
     GoldenCoconut = 791,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct GeodeReward {
-    pub item: ItemId,
-    pub quantity: usize,
-}
-
-impl GeodeReward {
-    pub const fn new(item: ItemId, quantity: usize) -> Self {
-        Self { item, quantity }
-    }
 }
 
 impl GeodeType {
@@ -50,12 +38,6 @@ impl GeodeType {
     }
 }
 
-#[derive(Clone, Debug)]
-enum GeodeDropItems {
-    Item(ItemId),
-    Random(Vec<ItemId>),
-}
-
 /// Cached drop information
 ///
 /// In order to speed up successive prediction for seed finding, we pre-resolve
@@ -64,10 +46,7 @@ enum GeodeDropItems {
 #[derive(Clone, Debug)]
 struct GeodeDrop {
     chance: f64,
-    condition: Option<String>,
-    min_stack: i32,
-    max_stack: i32,
-    drop: GeodeDropItems,
+    drop: Drop,
 }
 
 impl TryFrom<ObjectGeodeDropData> for GeodeDrop {
@@ -75,40 +54,9 @@ impl TryFrom<ObjectGeodeDropData> for GeodeDrop {
 
     fn try_from(drop: ObjectGeodeDropData) -> std::result::Result<Self, Self::Error> {
         let chance = drop.chance;
-        let condition = drop.parent.condition.clone();
-        let min_stack = drop.parent.parent.min_stack;
-        let max_stack = drop.parent.parent.max_stack;
-        let drop: Result<GeodeDropItems> = {
-            let random_item_id = &drop.parent.parent.random_item_id.as_ref();
-            if random_item_id.is_some() && !random_item_id.unwrap().is_empty() {
-                let ids = random_item_id
-                    .unwrap()
-                    .iter()
-                    .map(|id| {
-                        id.parse::<ItemId>()
-                            .map_err(|e| anyhow!("Can't parse item id {id}: {e}"))
-                    })
-                    .collect::<Result<Vec<ItemId>>>()?;
-                Ok(GeodeDropItems::Random(ids))
-            } else {
-                Ok(GeodeDropItems::Item(
-                    drop.parent
-                        .parent
-                        .item_id
-                        .as_ref()
-                        .ok_or_else(|| anyhow!("no item id for geode drop"))?
-                        .parse::<ItemId>()?,
-                ))
-            }
-        };
+        let drop = Drop::try_from(&drop.parent)?;
 
-        Ok(Self {
-            chance,
-            condition,
-            min_stack,
-            max_stack,
-            drop: drop?,
-        })
+        Ok(Self { chance, drop })
     }
 }
 
@@ -155,35 +103,6 @@ fn evaulate_condition(condition: &Option<String>, geodes_cracked: i32) -> bool {
     }
 }
 
-// Resolves a [`GeodeDrop`] into a [`GeodeReward`]
-fn try_resolve(rng: &mut Rng, drop: &GeodeDrop) -> Result<GeodeReward> {
-    let item = match &drop.drop {
-        GeodeDropItems::Item(item) => item,
-        GeodeDropItems::Random(items) => rng.chooose_from(items),
-    };
-
-    // This is the quanity logic from ItemQUeryResolve.ApplyItemfields.
-    let min_stack_size = drop.min_stack;
-    let max_stack_size = drop.max_stack;
-
-    // The fact that we have to cases that return 1 is to mirror the exact
-    // logic that the game uses.  I suspect that the first case here is
-    // unneccesary but need further testing to prove.
-    let stack_size = if min_stack_size == -1 && max_stack_size == -1 {
-        1
-    } else if max_stack_size > 1 {
-        let min_stack_size = max(min_stack_size, 1);
-        let max_stack_size = max(max_stack_size, min_stack_size);
-        rng.next_range(min_stack_size, max_stack_size + 1)?
-    } else if min_stack_size > 1 {
-        min_stack_size
-    } else {
-        1
-    };
-
-    Ok(GeodeReward::new(item.clone(), stack_size as usize))
-}
-
 /// Predict a single geode pull
 ///
 /// TODO: add mystery box support
@@ -194,7 +113,7 @@ pub fn predict_single_geode<G: SeedGenerator>(
     geode: &Geode,
     deepest_mine_level: usize,
     qi_bean_quest_active: bool,
-) -> Result<GeodeReward> {
+) -> Result<DropReward> {
     // Logic found in StardewValley.Utility.getTreasureFromGeode()
 
     let mut rng = Rng::new(generate_seed!(
@@ -216,7 +135,7 @@ pub fn predict_single_geode<G: SeedGenerator>(
 
     if rng.next_double() <= 0.1 && qi_bean_quest_active {
         let quantity = if rng.next_double() < 0.25 { 5 } else { 1 };
-        return Ok(GeodeReward::new(items::QI_BEAN, quantity));
+        return Ok(DropReward::new(items::QI_BEAN, quantity));
     }
 
     // The game contains a conditional here on getting the gode object by ID.
@@ -231,12 +150,12 @@ pub fn predict_single_geode<G: SeedGenerator>(
         // drops accoring to precidence
         for drop in &geode.drops {
             if !rng.next_weighted_bool(drop.chance)
-                || !evaulate_condition(&drop.condition, geodes_cracked)
+                || !evaulate_condition(&drop.drop.condition, geodes_cracked)
             {
                 continue;
             }
 
-            if let Ok(reward) = try_resolve(&mut rng, drop) {
+            if let Ok(reward) = drop.drop.try_resolve(&mut rng) {
                 return Ok(reward);
             }
         }
@@ -270,7 +189,7 @@ pub fn predict_single_geode<G: SeedGenerator>(
                 _ => (items::FIRE_QUARTZ, 1),
             },
         };
-        return Ok(GeodeReward::new(item, amount));
+        return Ok(DropReward::new(item, amount));
     }
 
     if !matches!(geode.ty, GeodeType::Geode) {
@@ -287,7 +206,7 @@ pub fn predict_single_geode<G: SeedGenerator>(
                     }
                 }
             };
-            return Ok(GeodeReward::new(item, amount));
+            return Ok(DropReward::new(item, amount));
         }
 
         let (item, amount) = match rng.next_max(5) {
@@ -297,7 +216,7 @@ pub fn predict_single_geode<G: SeedGenerator>(
             3 => (items::GOLD_ORE, amount),
             _ => (items::IRIDIUM_ORE, amount / 2 + 1),
         };
-        return Ok(GeodeReward::new(item, amount));
+        return Ok(DropReward::new(item, amount));
     }
 
     let item = match rng.next_max(3) {
@@ -311,7 +230,7 @@ pub fn predict_single_geode<G: SeedGenerator>(
         }
         _ => items::COAL,
     };
-    Ok(GeodeReward::new(item, amount))
+    Ok(DropReward::new(item, amount))
 }
 
 #[cfg(test)]
@@ -321,7 +240,7 @@ mod tests {
     use super::*;
 
     #[track_caller]
-    fn prediction_test(geode_type: GeodeType, geodes_cracked: i32) -> Result<Vec<GeodeReward>> {
+    fn prediction_test(geode_type: GeodeType, geodes_cracked: i32) -> Result<Vec<DropReward>> {
         let data = GameData::from_content_dir(crate::gamedata::get_game_content_path().unwrap())?;
         let geode = Geode::new(geode_type, &data).unwrap();
         let results: Vec<_> = (0..10)
@@ -347,16 +266,16 @@ mod tests {
         assert_eq!(
             prediction_test(GeodeType::Geode, 1).unwrap(),
             vec![
-                GeodeReward::new(items::ALAMITE, 1),
-                GeodeReward::new(items::STONE, 3),
-                GeodeReward::new(items::LIMESTONE, 1),
-                GeodeReward::new(items::LIMESTONE, 1),
-                GeodeReward::new(items::GRANITE, 1),
-                GeodeReward::new(items::NEKOITE, 1),
-                GeodeReward::new(items::ALAMITE, 1),
-                GeodeReward::new(items::COAL, 3),
-                GeodeReward::new(items::EARTH_CRYSTAL, 1),
-                GeodeReward::new(items::ALAMITE, 1),
+                DropReward::new(items::ALAMITE, 1),
+                DropReward::new(items::STONE, 3),
+                DropReward::new(items::LIMESTONE, 1),
+                DropReward::new(items::LIMESTONE, 1),
+                DropReward::new(items::GRANITE, 1),
+                DropReward::new(items::NEKOITE, 1),
+                DropReward::new(items::ALAMITE, 1),
+                DropReward::new(items::COAL, 3),
+                DropReward::new(items::EARTH_CRYSTAL, 1),
+                DropReward::new(items::ALAMITE, 1),
             ],
         );
     }
@@ -367,16 +286,16 @@ mod tests {
         assert_eq!(
             prediction_test(GeodeType::FrozenGeode, 1).unwrap(),
             vec![
-                GeodeReward::new(items::AERINITE, 1),
-                GeodeReward::new(items::STONE, 3),
-                GeodeReward::new(items::SOAPSTONE, 1),
-                GeodeReward::new(items::SOAPSTONE, 1),
-                GeodeReward::new(items::MARBLE, 1),
-                GeodeReward::new(items::LUNARITE, 1),
-                GeodeReward::new(items::AERINITE, 1),
-                GeodeReward::new(items::IRON_ORE, 3),
-                GeodeReward::new(items::FROZEN_TEAR, 1),
-                GeodeReward::new(items::AERINITE, 1),
+                DropReward::new(items::AERINITE, 1),
+                DropReward::new(items::STONE, 3),
+                DropReward::new(items::SOAPSTONE, 1),
+                DropReward::new(items::SOAPSTONE, 1),
+                DropReward::new(items::MARBLE, 1),
+                DropReward::new(items::LUNARITE, 1),
+                DropReward::new(items::AERINITE, 1),
+                DropReward::new(items::IRON_ORE, 3),
+                DropReward::new(items::FROZEN_TEAR, 1),
+                DropReward::new(items::AERINITE, 1),
             ],
         );
     }
@@ -387,16 +306,16 @@ mod tests {
         assert_eq!(
             prediction_test(GeodeType::MagmaGeode, 1).unwrap(),
             vec![
-                GeodeReward::new(items::BIXITE, 1),
-                GeodeReward::new(items::STONE, 3),
-                GeodeReward::new(items::OBSIDIAN, 1),
-                GeodeReward::new(items::BASALT, 1),
-                GeodeReward::new(items::BASALT, 1),
-                GeodeReward::new(items::NEPTUNITE, 1),
-                GeodeReward::new(items::BIXITE, 1),
-                GeodeReward::new(items::IRIDIUM_ORE, 2),
-                GeodeReward::new(items::FIRE_QUARTZ, 1),
-                GeodeReward::new(items::BIXITE, 1),
+                DropReward::new(items::BIXITE, 1),
+                DropReward::new(items::STONE, 3),
+                DropReward::new(items::OBSIDIAN, 1),
+                DropReward::new(items::BASALT, 1),
+                DropReward::new(items::BASALT, 1),
+                DropReward::new(items::NEPTUNITE, 1),
+                DropReward::new(items::BIXITE, 1),
+                DropReward::new(items::IRIDIUM_ORE, 2),
+                DropReward::new(items::FIRE_QUARTZ, 1),
+                DropReward::new(items::BIXITE, 1),
             ],
         );
     }
@@ -407,16 +326,16 @@ mod tests {
         assert_eq!(
             prediction_test(GeodeType::OmniGeode, 1).unwrap(),
             vec![
-                GeodeReward::new(items::LUNARITE, 1),
-                GeodeReward::new(items::STONE, 3),
-                GeodeReward::new(items::FLUORAPATITE, 1),
-                GeodeReward::new(items::TIGERSEYE, 1),
-                GeodeReward::new(items::GEMINITE, 1),
-                GeodeReward::new(items::LIMESTONE, 1),
-                GeodeReward::new(items::HEMATITE, 1),
-                GeodeReward::new(items::IRIDIUM_ORE, 2),
-                GeodeReward::new(items::EARTH_CRYSTAL, 1),
-                GeodeReward::new(items::FIRE_OPAL, 1),
+                DropReward::new(items::LUNARITE, 1),
+                DropReward::new(items::STONE, 3),
+                DropReward::new(items::FLUORAPATITE, 1),
+                DropReward::new(items::TIGERSEYE, 1),
+                DropReward::new(items::GEMINITE, 1),
+                DropReward::new(items::LIMESTONE, 1),
+                DropReward::new(items::HEMATITE, 1),
+                DropReward::new(items::IRIDIUM_ORE, 2),
+                DropReward::new(items::EARTH_CRYSTAL, 1),
+                DropReward::new(items::FIRE_OPAL, 1),
             ],
         );
     }
@@ -427,16 +346,16 @@ mod tests {
         assert_eq!(
             prediction_test(GeodeType::ArtifactTrove, 1).unwrap(),
             vec![
-                GeodeReward::new(items::RARE_DISC, 1),
-                GeodeReward::new(items::DWARVISH_HELM, 1),
-                GeodeReward::new(items::ANCIENT_DOLL, 1),
-                GeodeReward::new(items::ORNAMENTAL_FAN, 1),
-                GeodeReward::new(items::CHIPPED_AMPHORA, 1),
-                GeodeReward::new(items::CHIPPED_AMPHORA, 1),
-                GeodeReward::new(items::ELVISH_JEWELRY, 1),
-                GeodeReward::new(items::ANCIENT_DRUM, 1),
-                GeodeReward::new(items::BONE_FLUTE, 1),
-                GeodeReward::new(items::ANCIENT_DOLL, 1),
+                DropReward::new(items::RARE_DISC, 1),
+                DropReward::new(items::DWARVISH_HELM, 1),
+                DropReward::new(items::ANCIENT_DOLL, 1),
+                DropReward::new(items::ORNAMENTAL_FAN, 1),
+                DropReward::new(items::CHIPPED_AMPHORA, 1),
+                DropReward::new(items::CHIPPED_AMPHORA, 1),
+                DropReward::new(items::ELVISH_JEWELRY, 1),
+                DropReward::new(items::ANCIENT_DRUM, 1),
+                DropReward::new(items::BONE_FLUTE, 1),
+                DropReward::new(items::ANCIENT_DOLL, 1),
             ],
         );
     }

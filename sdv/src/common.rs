@@ -513,7 +513,7 @@ pub enum ModificationType {
 #[xnb_name("StardewValley.GameData.QuantityModifier")]
 pub struct QuantityModifier {
     pub id: String,
-    pub condition: String,
+    pub condition: Option<String>,
     pub modification: ModificationType,
     pub amount: f32,
     pub random_amount: Option<Vec<f32>>,
@@ -589,6 +589,9 @@ pub mod items {
     use crate::item_id;
 
     use super::ItemId;
+
+    // Psuedo items
+    pub const DISH_OF_THE_DAY: ItemId = item_id!("DISH_OF_THE_DAY");
 
     pub const WEEDS: ItemId = item_id!("(O)0");
     pub const DIAMOND_STONE: ItemId = item_id!("(O)2");

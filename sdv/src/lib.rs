@@ -48,6 +48,46 @@ macro_rules! generate_seed {
     };
 }
 
+#[macro_export]
+macro_rules! generate_day_save_seed {
+    ($generator:ty, $days_played:expr, $game_id:expr) => {
+        <$generator>::generate_day_save_seed(
+            $days_played as u32,
+            $game_id as u32,
+            0.0 as f64,
+            0.0 as f64,
+            0.0 as f64,
+        )
+    };
+    ($generator:ty, $days_played:expr, $game_id:expr, $a:expr) => {
+        <$generator>::generate_day_save_seed(
+            $days_played as u32,
+            $game_id as u32,
+            $a as f64,
+            0.0 as f64,
+            0.0 as f64,
+        )
+    };
+    ($generator:ty, $days_played:expr, $game_id:expr, $a:expr, $b:expr) => {
+        <$generator>::generate_day_save_seed(
+            $days_played as u32,
+            $game_id as u32,
+            $a as f64,
+            $b as f64,
+            0.0 as f64,
+        )
+    };
+    ($generator:ty, $days_played:expr, $game_id:expr, $a:expr, $b:expr, $c:expr) => {
+        <$generator>::generate_day_save_seed(
+            $days_played as u32,
+            $game_id as u32,
+            $a as f64,
+            $b as f64,
+            $c as f64,
+        )
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

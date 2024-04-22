@@ -23,6 +23,7 @@ pub mod big_craftable;
 pub mod bundle;
 pub mod character;
 pub mod fish;
+pub mod garbage;
 pub mod locale;
 pub mod location;
 pub mod npc_gift_tastes;
@@ -43,7 +44,7 @@ pub use recipe::Recipe;
 
 use crate::FromJsonReader;
 
-use self::location::LocationData;
+use self::{garbage::GarbageCanData, location::LocationData};
 
 // Needs to be updated for Serde
 // pub use map::{Map, Tile};
@@ -204,6 +205,7 @@ pub struct GameDataRaw {
     pub cooking_recipies: IndexMap<String, Recipe>,
     pub crafting_recipies: IndexMap<String, Recipe>,
     pub fish: IndexMap<String, Fish>,
+    pub garbage_cans: GarbageCanData,
     pub objects: IndexMap<String, ObjectData>,
     pub npc_gift_tastes: IndexMap<String, NpcGiftTastes>,
     pub locations: IndexMap<String, LocationData>,
@@ -218,6 +220,7 @@ impl From<&GameData> for GameDataRaw {
             cooking_recipies: data.cooking_recipies.clone(),
             crafting_recipies: data.crafting_recipies.clone(),
             fish: data.fish.clone(),
+            garbage_cans: data.garbage_cans.clone(),
             objects: data.objects.clone(),
             npc_gift_tastes: data.npc_gift_tastes.clone(),
             locations: data.locations.clone(),
@@ -233,6 +236,7 @@ pub struct GameData {
     pub cooking_recipies: IndexMap<String, Recipe>,
     pub crafting_recipies: IndexMap<String, Recipe>,
     pub fish: IndexMap<String, Fish>,
+    pub garbage_cans: GarbageCanData,
     pub objects: IndexMap<String, ObjectData>,
     pub npc_gift_tastes: IndexMap<String, NpcGiftTastes>,
     pub locations: IndexMap<String, LocationData>,
@@ -282,6 +286,7 @@ impl GameData {
             cooking_recipies: raw.cooking_recipies,
             crafting_recipies: raw.crafting_recipies,
             fish: raw.fish,
+            garbage_cans: raw.garbage_cans,
             objects: raw.objects,
             npc_gift_tastes: raw.npc_gift_tastes,
             locations: raw.locations,
@@ -316,6 +321,7 @@ impl GameData {
         fish_file.push("Fish.xnb");
         let fish = Fish::load(&fish_file)?;
 
+        let garbage_cans = load_xnb_object(&game_content_dir, "Data/GarbageCans.xnb")?;
         let locations = load_xnb_object(&game_content_dir, "Data/Locations.xnb")?;
         let objects = load_xnb_object(&game_content_dir, "Data/Objects.xnb")?;
 
@@ -330,6 +336,7 @@ impl GameData {
             cooking_recipies,
             crafting_recipies,
             fish,
+            garbage_cans,
             objects,
             npc_gift_tastes,
             locations,
@@ -369,6 +376,10 @@ impl GameData {
             .get(id)
             .ok_or(anyhow!("Can't find game object id {id:?}"))?;
         self.get_object(id)
+    }
+
+    pub fn register_id(&mut self, id: &ItemId, name: &str) {
+        self.object_id_map.insert(id.clone(), name.to_string());
     }
 
     pub fn load_map<P: AsRef<Path>>(&self, path: P) -> Result<xnb::xtile::Map> {

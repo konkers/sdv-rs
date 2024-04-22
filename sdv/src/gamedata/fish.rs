@@ -259,7 +259,11 @@ mod tests {
         );
 
         assert_eq!(
-            Fish::parse("Largemouth Bass/50/mixed/11/30/600 1900/spring summer fall winter/both/685 .35/3/.4/.2/0").unwrap(),
+            Fish::parse(
+                "Largemouth Bass/50/mixed/11/30/600 1900/spring summer fall winter/both/685 \
+                 .35/3/.4/.2/0"
+            )
+            .unwrap(),
             (
                 "",
                 Fish::Line {
@@ -272,19 +276,12 @@ mod tests {
                         start: 600,
                         end: 1900
                     }],
-                    seasons: vec![
-                        Season::Spring,
-                        Season::Summer,
-                        Season::Fall,
-                        Season::Winter,
-                    ],
+                    seasons: vec![Season::Spring, Season::Summer, Season::Fall, Season::Winter,],
                     weather: Weather::Both,
-                    bait_affinity: vec![
-                        BaitAffinity {
-                            bait_id: 685,
-                            affinity: 0.35,
-                        },
-                    ],
+                    bait_affinity: vec![BaitAffinity {
+                        bait_id: 685,
+                        affinity: 0.35,
+                    },],
                     min_depth: 3,
                     spawn_mult: 0.4,
                     depth_mult: 0.2,

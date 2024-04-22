@@ -17,6 +17,7 @@ use crate::gamedata::sub_field_value;
 use crate::gamedata::{decimal, sub_field};
 use crate::save::{Finder, NodeFinder, SaveError, SaveResult};
 
+pub use sdv_core::ItemId;
 pub use xnb::XnbType;
 
 #[derive(Clone, Debug, Deserialize, EnumString, Eq, PartialEq, Serialize, XnbType)]
@@ -24,13 +25,13 @@ pub enum ItemType {
     BigCraftable,
     Boot,
     Flooring,
-    Furnature,
-    Hats,
+    Fruniture,
+    Hat,
     Object,
     Mannequin,
     Pants,
     Shirt,
-    Tools,
+    Tool,
     Trinket,
     Wallpaper,
     Weapon,
@@ -42,13 +43,13 @@ impl ItemType {
             ItemType::BigCraftable => "(BC)",
             ItemType::Boot => "(B)",
             ItemType::Flooring => "(FL)",
-            ItemType::Furnature => "(F)",
-            ItemType::Hats => "(H)",
+            ItemType::Fruniture => "(F)",
+            ItemType::Hat => "(H)",
             ItemType::Mannequin => "(M)",
             ItemType::Object => "(O)",
             ItemType::Pants => "(P)",
             ItemType::Shirt => "(S)",
-            ItemType::Tools => "(T)",
+            ItemType::Tool => "(T)",
             ItemType::Trinket => "(TR)",
             ItemType::Wallpaper => "(WP)",
             ItemType::Weapon => "(W)",
@@ -582,6 +583,29 @@ pub enum ObjectId {
     OmniGeode = 749,
     GoldenCoconut = 791,
     QiBean = 890,
+}
+
+pub mod items {
+    use crate::item_id;
+
+    use super::ItemId;
+
+    pub const FIRE_QUARTZ: ItemId = item_id!("(O)82");
+    pub const FROZEN_TEAR: ItemId = item_id!("(O)84");
+    pub const EARTH_CRYSTAL: ItemId = item_id!("(O)86");
+
+    pub const CLAY: ItemId = item_id!("(O)330");
+    pub const COPPER_ORE: ItemId = item_id!("(O)378");
+    pub const IRON_ORE: ItemId = item_id!("(O)380");
+    pub const COAL: ItemId = item_id!("(O)382");
+    pub const GOLD_ORE: ItemId = item_id!("(O)384");
+    pub const IRIDIUM_ORE: ItemId = item_id!("(O)386");
+    pub const STONE: ItemId = item_id!("(O)390");
+
+    pub const GEODE: ItemId = item_id!("(O)535");
+    pub const FROZEN_GEODE: ItemId = item_id!("(O)536");
+
+    pub const QI_BEAN: ItemId = item_id!("(O)980");
 }
 
 impl std::cmp::PartialEq<String> for ObjectId {

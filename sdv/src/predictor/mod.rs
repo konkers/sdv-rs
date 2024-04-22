@@ -1,4 +1,4 @@
 pub mod bubbles;
-//mod geode;
+pub mod geode;
 
 //pub use geode::{Geode, GeodeType};

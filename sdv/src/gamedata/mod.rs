@@ -10,6 +10,7 @@ use nom::{
     sequence::{pair, preceded, terminated, tuple},
     IResult, Parser,
 };
+use sdv_core::ItemId;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{
     collections::HashMap,
@@ -199,6 +200,7 @@ pub struct GameData {
     pub npc_gift_tastes: IndexMap<String, NpcGiftTastes>,
     pub locations: IndexMap<String, LocationData>,
     object_name_map: HashMap<String, String>,
+    object_id_map: HashMap<ItemId, String>,
     content_dir: Option<PathBuf>,
 }
 
@@ -229,6 +231,13 @@ impl GameData {
             .map(|(id, object)| (object.name.clone(), id.clone()))
             .collect();
 
+        // Calculate object_id_map.
+        let object_id_map = raw
+            .objects
+            .iter()
+            .map(|(id, _)| (format!("(O){id}").parse::<ItemId>().unwrap(), id.clone()))
+            .collect();
+
         Self {
             big_craftables: raw.big_craftables,
             bundles: raw.bundles,
@@ -240,6 +249,7 @@ impl GameData {
             npc_gift_tastes: raw.npc_gift_tastes,
             locations: raw.locations,
             object_name_map,
+            object_id_map,
             content_dir: None,
         }
     }
@@ -313,6 +323,14 @@ impl GameData {
             .object_name_map
             .get(name)
             .ok_or(anyhow!("Can't find game object {}", name))?;
+        self.get_object(id)
+    }
+
+    pub fn get_object_by_id<'a>(&'a self, id: &ItemId) -> Result<&'a ObjectData> {
+        let id = self
+            .object_id_map
+            .get(id)
+            .ok_or(anyhow!("Can't find game object id {id:?}"))?;
         self.get_object(id)
     }
 

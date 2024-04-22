@@ -186,6 +186,16 @@ impl Rng {
         self.next_double() < 0.5
     }
 
+    /// Pull a weighted boolean sample from the [Rng].
+    ///
+    /// `chance` ([0.0..1.0]) is the probablity that true will be returned.
+    pub fn next_weighted_bool(&mut self, chance: f64) -> bool {
+        if chance >= 1.0 {
+            return true;
+        }
+        self.next_double() < chance
+    }
+
     /// Pull a value with maximum value from the [Rng].
     ///
     /// Value returned is in the range [0, max_val).
@@ -214,6 +224,10 @@ impl Rng {
         } else {
             Ok(((self.sample_large_range() * range as f64) as i64 + min_val) as i32)
         }
+    }
+
+    pub fn chooose_from<'a, T>(&mut self, choices: &'a [T]) -> &'a T {
+        &choices[self.next_max(choices.len() as i32) as usize]
     }
 }
 

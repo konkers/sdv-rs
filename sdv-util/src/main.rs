@@ -18,7 +18,10 @@ use sdv::{
     analyzer::perfection::analyze_perfection,
     common::{DayOfWeek, ObjectCategory, Point},
     gamedata::{Fish, GameData, Locale, ObjectTaste},
-    predictor,
+    predictor::{
+        self,
+        geode::{predict_single_geode, Geode, GeodeType},
+    },
     rng::HashedSeedGenerator,
     save::Object,
     SaveGame,
@@ -206,8 +209,30 @@ struct BubblesOpt {
 }
 
 #[derive(Debug, StructOpt)]
+struct GeodesOpt {
+    #[structopt(flatten)]
+    content: GameContentLoc,
+
+    #[structopt(long)]
+    geode_type: GeodeType,
+
+    #[structopt(long)]
+    geodes_cracked: i32,
+
+    #[structopt(long)]
+    multiplayer_id: i64,
+
+    #[structopt(long)]
+    deepest_mine_level: usize,
+
+    #[structopt(long)]
+    seed: u32,
+}
+
+#[derive(Debug, StructOpt)]
 enum PredictOpt {
     Bubbles(BubblesOpt),
+    Geode(GeodesOpt),
 }
 
 #[derive(Debug, StructOpt)]
@@ -216,7 +241,7 @@ enum Opt {
     Dump(DumpOpt),
     Fish(GameAndSaveOpt),
     Food(GameAndSaveOpt),
-    //  Geodes(GameAndSaveOpt),
+    //Geodes(GameAndSaveOpt),
     Items(ItemsOpt),
     RenderMap(RenderMapOpt),
     Package(PackageOpt),
@@ -1177,9 +1202,29 @@ fn cmd_predict_bubbles(opt: &BubblesOpt) -> Result<()> {
     Ok(())
 }
 
+fn cmd_predict_geode(opt: &GeodesOpt) -> Result<()> {
+    let data = GameData::from_content_dir(opt.content.get()?)?;
+    let geode = Geode::new(opt.geode_type, &data)?;
+
+    for i in 0..10 {
+        let reward = predict_single_geode::<HashedSeedGenerator>(
+            opt.seed,
+            opt.multiplayer_id,
+            opt.geodes_cracked + i,
+            &geode,
+            opt.deepest_mine_level,
+            false, // qi_bean_quest_active,
+        )?;
+        let object = data.get_object_by_id(&reward.item)?;
+        println!("{i}: {} {}", object.name, reward.quantity);
+    }
+    Ok(())
+}
+
 fn cmd_predict(opt: &PredictOpt) -> Result<()> {
     match opt {
         PredictOpt::Bubbles(o) => cmd_predict_bubbles(o),
+        PredictOpt::Geode(o) => cmd_predict_geode(o),
     }
 }
 

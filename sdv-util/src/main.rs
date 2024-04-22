@@ -52,44 +52,13 @@ struct GameContentLoc {
 }
 
 impl GameContentLoc {
-    #[cfg(windows)]
-    fn get(&self) -> Result<PathBuf> {
-        use winreg::{enums::HKEY_LOCAL_MACHINE, RegKey};
-
-        if let Some(path) = &self.game_content {
-            return Ok(path.clone());
-        }
-        let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-        let steam = hklm.open_subkey("SOFTWARE\\WOW6432Node\\Valve\\Steam")?;
-        let steam_path: String = steam.get_value("InstallPath")?;
-        let path: PathBuf = [
-            &steam_path,
-            "steamapps",
-            "common",
-            "Stardew Valley",
-            "Content",
-        ]
-        .iter()
-        .collect();
-
-        Ok(path)
-    }
-
-    #[cfg(target_os = "macos")]
     fn get(&self) -> Result<PathBuf> {
         if let Some(path) = &self.game_content {
             return Ok(path.clone());
         }
 
-        let mut home_dir = dirs::home_dir().ok_or_else(|| anyhow!("Can't find home directory"))?;
-        home_dir.push("Library/Application Support/Steam/steamapps/common/Stardew Valley/Contents/Resources/Content");
-        println!("{}", home_dir.display());
-        Ok(home_dir)
-    }
-
-    #[cfg(all(not(windows), not(target_os = "macos")))]
-    fn get(&self) -> Result<PathBuf> {
-        Ok(self.game_content.clone())
+        sdv::gamedata::get_game_content_path()
+            .ok_or_else(|| anyhow!("Can't locate default game data path"))
     }
 }
 

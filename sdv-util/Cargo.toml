@@ -8,6 +8,8 @@ edition = "2018"
 
 [dependencies]
 anyhow = "1.0"
+crossterm = "0.23.1"
+env_logger = "0.11.3"
 image = "0.25.1"
 indexmap = "1.6.1"
 itertools = "0.10.5"
@@ -15,15 +17,9 @@ num-traits = "0.2"
 structopt = "0.3"
 strum = { version = "0.24", features = ["derive"] }
 sdv = { path = "../sdv" }
+serde = { workspace = true }
+serde_json = { workspace = true }
 termimad = "0.20"
-crossterm = "0.23.1"
-env_logger = "0.11.3"
-serde_json = "1.0.115"
-dirs = "5.0.1"
+walkdir = "2.5.0"
 xnb = { workspace = true, features = ["image"] }
 zip = "0.6.6"
-walkdir = "2.5.0"
-serde = "1.0.197"
-
-[target.'cfg(target_os = "windows")'.dependencies]
-winreg = "0.52.0"

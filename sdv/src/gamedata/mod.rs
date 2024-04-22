@@ -49,6 +49,43 @@ use self::location::LocationData;
 // pub use map::{Map, Tile};
 // pub use texture::Texture;
 
+#[cfg(windows)]
+pub fn get_game_content_path() -> Option<PathBuf> {
+    use winreg::{enums::HKEY_LOCAL_MACHINE, RegKey};
+
+    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+    let steam = hklm
+        .open_subkey("SOFTWARE\\WOW6432Node\\Valve\\Steam")
+        .ok()?;
+    let steam_path: String = steam.get_value("InstallPath").ok()?;
+    let path: PathBuf = [
+        &steam_path,
+        "steamapps",
+        "common",
+        "Stardew Valley",
+        "Content",
+    ]
+    .iter()
+    .collect();
+
+    Some(path)
+}
+
+#[cfg(target_os = "macos")]
+pub fn get_game_content_path() -> Option<PathBuf> {
+    let mut home_dir = dirs::home_dir()?;
+    home_dir.push(
+        "Library/Application Support/Steam/steamapps/common/Stardew \
+             Valley/Contents/Resources/Content",
+    );
+    Some(home_dir)
+}
+
+#[cfg(all(not(windows), not(target_os = "macos")))]
+pub fn get_game_content_path() -> Option<PathBuf> {
+    None
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ObjectTaste {
     Love,

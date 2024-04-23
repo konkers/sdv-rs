@@ -205,11 +205,17 @@ enum PredictOpt {
 }
 
 #[derive(Debug, StructOpt)]
+enum GenerateOpt {
+    Objects(GameContentLoc),
+}
+
+#[derive(Debug, StructOpt)]
 enum Opt {
     Bundles(GameAndSaveOpt),
     Dump(DumpOpt),
     Fish(GameAndSaveOpt),
     Food(GameAndSaveOpt),
+    Generate(GenerateOpt),
     //Geodes(GameAndSaveOpt),
     Items(ItemsOpt),
     RenderMap(RenderMapOpt),
@@ -1197,6 +1203,101 @@ fn cmd_predict(opt: &PredictOpt) -> Result<()> {
     }
 }
 
+fn cmd_generate_objects(opt: &GameContentLoc) -> Result<()> {
+    let data = GameData::from_content_dir(opt.get()?)?;
+    let locale = Locale::from_content_dir(opt.get()?, "en-EN")?;
+    for (id, object) in &data.objects {
+        let display_name = object.display_name(&locale);
+        let mut const_name = match id.as_str() {
+            "180" => "EGG_180".to_string(),
+            "182" => "LARGE_EGG_182".to_string(),
+            "930" => "QUESTION_MARKS".to_string(),
+            "BasicCoalNode0" => "BASIC_COAL_NODE_0".to_string(),
+            "BasicCoalNode1" => "BASIC_COAL_NODE_1".to_string(),
+            "CalicoEggStone_0" => "CALICO_EGG_STONE_0".to_string(),
+            "CalicoEggStone_1" => "CALICO_EGG_STONE_1".to_string(),
+            "CalicoEggStone_2" => "CALICO_EGG_STONE_2".to_string(),
+            "GreenRainWeeds0" => "GREEN_RAIN_WEEDS_0".to_string(),
+            "GreenRainWeeds1" => "GREEN_RAIN_WEEDS_1".to_string(),
+            "GreenRainWeeds2" => "GREEN_RAIN_WEEDS_2".to_string(),
+            "GreenRainWeeds3" => "GREEN_RAIN_WEEDS_3".to_string(),
+            "GreenRainWeeds4" => "GREEN_RAIN_WEEDS_4".to_string(),
+            "GreenRainWeeds5" => "GREEN_RAIN_WEEDS_5".to_string(),
+            "GreenRainWeeds6" => "GREEN_RAIN_WEEDS_6".to_string(),
+            "GreenRainWeeds7" => "GREEN_RAIN_WEEDS_7".to_string(),
+            "PotOfGold" => "POT_OF_GOLD".to_string(),
+            "SeedSpot" => "SEED_SPOT".to_string(),
+            "SpecificBait" => "SPECIFIC_BAIT".to_string(),
+            "VolcanoCoalNode0" => "VOLCANO_COAL_NODE_0".to_string(),
+            "VolcanoCoalNode1" => "VOLCANO_COAL_NODE_1".to_string(),
+            "VolcanoGoldNode" => "VOLCANO_GOLD_NODE".to_string(),
+            _ => display_name
+                .to_ascii_uppercase()
+                .replace([' ', '-'], "_")
+                .replace('ñ', "N")
+                .replace(['.', ',', '\'', '(', ')', ':'], ""),
+        };
+
+        if const_name == "WEEDS" && id != "0" {
+            const_name = format!("WEEDS_{id}");
+        }
+
+        if const_name == "STONE" && id != "390" {
+            const_name = format!("STONE_{id}");
+        }
+
+        if const_name == "SNOWY_STONE" {
+            const_name = format!("SNOWY_STONE_{id}");
+        }
+
+        if const_name == "STRANGE_DOLL" {
+            const_name = format!("STRANGE_DOLL_{id}");
+        }
+
+        if const_name == "TWIG" {
+            const_name = format!("TWIG_{id}");
+        }
+
+        if const_name == "ICE_CRYSTAL" {
+            const_name = format!("ICE_CRYSTAL_{id}");
+        }
+
+        if const_name == "ROTTEN_PLANT" {
+            const_name = format!("ROTTEN_PLANT_{id}");
+        }
+
+        if const_name == "FOSSIL_STONE" {
+            const_name = format!("FOSSIL_STONE_{id}");
+        }
+
+        if const_name == "CINDER_SHARD_STONE" {
+            const_name = format!("CINDER_SHARD_STONE_{id}");
+        }
+
+        if const_name == "COPPER_STONE" {
+            const_name = format!("COPPER_STONE_{id}");
+        }
+
+        if const_name == "IRON_STONE" {
+            const_name = format!("IRON_STONE_{id}");
+        }
+
+        if const_name == "SUPPLYCRATE" {
+            const_name = format!("SUPPLYCRATE_{id}");
+        }
+
+        println!("pub const {const_name}: ItemId = item_id!(\"(O){id}\");");
+    }
+
+    Ok(())
+}
+
+fn cmd_generate(opt: &GenerateOpt) -> Result<()> {
+    match opt {
+        GenerateOpt::Objects(o) => cmd_generate_objects(o),
+    }
+}
+
 fn main() -> Result<()> {
     env_logger::init();
 
@@ -1207,6 +1308,7 @@ fn main() -> Result<()> {
         Opt::Bundles(o) => cmd_bundles(&o)?,
         Opt::Fish(o) => cmd_fish(&o)?,
         Opt::Food(o) => cmd_food(&o)?,
+        Opt::Generate(o) => cmd_generate(&o)?,
         //Opt::Geodes(o) => cmd_geodes(&o)?,
         Opt::Items(o) => cmd_items(&o)?,
         Opt::Package(o) => cmd_package(&o)?,

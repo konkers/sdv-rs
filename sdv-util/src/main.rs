@@ -1209,12 +1209,7 @@ fn cmd_predict_garbage(opt: &GameContentLoc) -> Result<()> {
         game_id: 254546202,
         days_played: 1,
         daily_luck: 0.0999,
-        has_trash_book: false,
-        trash_cans_checked: 0,
-        qi_beans_quest_active: false,
-        has_cc_movie_theater_mail: false,
-        has_cc_movie_theater_joja_mail: false,
-        seen_event_191383: false,
+        ..Default::default()
     };
     let cans = GarbageCanLocation::iter()
         .map(|location| GarbageCan::new(location, &data.garbage_cans, &state))

@@ -3,17 +3,18 @@ use std::{cmp::max, convert::TryFrom};
 use anyhow::{anyhow, Result};
 
 use crate::{
-    common::{GenericSpawnItemDataWithCondition, ItemId},
-    item_id,
-    rng::Rng,
+    common::{GenericSpawnItemDataWithCondition, ItemId, Season},
+    generate_day_save_seed, item_id,
+    rng::{Rng, SeedGenerator},
 };
 
 pub mod bubbles;
 pub mod garbage;
 pub mod geode;
+pub mod night_event;
 
 /// Game state data for garbage prediction.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct PredictionGameState {
     pub game_id: u32,
     pub days_played: u32,
@@ -24,6 +25,40 @@ pub struct PredictionGameState {
     pub has_cc_movie_theater_mail: bool,
     pub has_cc_movie_theater_joja_mail: bool,
     pub seen_event_191383: bool,
+    pub cc_pantry_complete: bool,
+    pub raccoon_tree_fallen: bool,
+    pub has_fairy_rose: bool,
+    pub has_mail_got_capsule: bool,
+}
+
+impl PredictionGameState {
+    pub fn create_day_save_random<G: SeedGenerator>(&self, a: f64, b: f64, c: f64) -> Rng {
+        Rng::new(generate_day_save_seed!(
+            G,
+            self.days_played,
+            self.game_id,
+            a,
+            b,
+            c
+        ))
+    }
+
+    pub const fn year(&self) -> u32 {
+        (self.days_played - 1) / (28 * 4) + 1
+    }
+
+    pub const fn season(&self) -> Season {
+        match ((self.days_played - 1) / 28) % 4 {
+            0 => Season::Spring,
+            1 => Season::Summer,
+            2 => Season::Fall,
+            _ => Season::Winter,
+        }
+    }
+
+    pub const fn day_of_month(&self) -> u32 {
+        (self.days_played - 1) % 28 + 1
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

@@ -1,4 +1,4 @@
-use std::{convert::TryFrom};
+use std::convert::TryFrom;
 
 use anyhow::{anyhow, Result};
 use strum::{Display, EnumIter, EnumString};
@@ -266,12 +266,7 @@ mod tests {
             game_id: 254546202,
             days_played,
             daily_luck: 0.0999,
-            has_trash_book: false,
-            trash_cans_checked: 0,
-            qi_beans_quest_active: false,
-            has_cc_movie_theater_mail: false,
-            has_cc_movie_theater_joja_mail: false,
-            seen_event_191383: false,
+            ..Default::default()
         };
         GarbageCanLocation::iter()
             .filter_map(|location| {

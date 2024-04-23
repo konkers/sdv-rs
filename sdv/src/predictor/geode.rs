@@ -25,6 +25,7 @@ pub enum GeodeType {
     GoldenCoconut = 791,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GeodeReward {
     pub item: ItemId,
     pub quantity: usize,
@@ -251,16 +252,22 @@ pub fn predict_single_geode<G: SeedGenerator>(
     }
 
     if rng.next_bool() {
-        let item = match rng.next_max(4) {
-            0 | 1 => items::STONE,
-            2 => items::CLAY,
+        let (item, amount) = match rng.next_max(4) {
+            0 | 1 => (items::STONE, amount),
+            2 => (items::CLAY, 1),
             _ => match geode.ty {
-                GeodeType::OmniGeode => rng
-                    .chooose_from(&[items::FIRE_QUARTZ, items::FROZEN_TEAR, items::EARTH_CRYSTAL])
+                GeodeType::OmniGeode => (
+                    rng.chooose_from(&[
+                        items::FIRE_QUARTZ,
+                        items::FROZEN_TEAR,
+                        items::EARTH_CRYSTAL,
+                    ])
                     .clone(),
-                GeodeType::Geode => items::EARTH_CRYSTAL,
-                GeodeType::FrozenGeode => items::FROZEN_TEAR,
-                _ => items::FIRE_QUARTZ,
+                    1,
+                ),
+                GeodeType::Geode => (items::EARTH_CRYSTAL, 1),
+                GeodeType::FrozenGeode => (items::FROZEN_TEAR, 1),
+                _ => (items::FIRE_QUARTZ, 1),
             },
         };
         return Ok(GeodeReward::new(item, amount));
@@ -305,4 +312,132 @@ pub fn predict_single_geode<G: SeedGenerator>(
         _ => items::COAL,
     };
     Ok(GeodeReward::new(item, amount))
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::rng::HashedSeedGenerator;
+
+    use super::*;
+
+    #[track_caller]
+    fn prediction_test(geode_type: GeodeType, geodes_cracked: i32) -> Result<Vec<GeodeReward>> {
+        let data = GameData::from_content_dir(crate::gamedata::get_game_content_path().unwrap())?;
+        let geode = Geode::new(geode_type, &data).unwrap();
+        let results: Vec<_> = (0..10)
+            .map(|i| {
+                predict_single_geode::<HashedSeedGenerator>(
+                    7269403u32,
+                    -7347405514601242418i64,
+                    geodes_cracked + i,
+                    &geode,
+                    0,     // deepest_mine_level
+                    false, // qi_bean_quest_active
+                )
+                .unwrap()
+            })
+            .collect();
+
+        Ok(results)
+    }
+
+    #[test]
+    fn geode_prediction_returns_correct_results() {
+        // Data was verified with mousepounds predictor.
+        assert_eq!(
+            prediction_test(GeodeType::Geode, 1).unwrap(),
+            vec![
+                GeodeReward::new(items::ALAMITE, 1),
+                GeodeReward::new(items::STONE, 3),
+                GeodeReward::new(items::LIMESTONE, 1),
+                GeodeReward::new(items::LIMESTONE, 1),
+                GeodeReward::new(items::GRANITE, 1),
+                GeodeReward::new(items::NEKOITE, 1),
+                GeodeReward::new(items::ALAMITE, 1),
+                GeodeReward::new(items::COAL, 3),
+                GeodeReward::new(items::EARTH_CRYSTAL, 1),
+                GeodeReward::new(items::ALAMITE, 1),
+            ],
+        );
+    }
+
+    #[test]
+    fn frozen_geode_prediction_returns_correct_results() {
+        // Data was verified with mousepounds predictor.
+        assert_eq!(
+            prediction_test(GeodeType::FrozenGeode, 1).unwrap(),
+            vec![
+                GeodeReward::new(items::AERINITE, 1),
+                GeodeReward::new(items::STONE, 3),
+                GeodeReward::new(items::SOAPSTONE, 1),
+                GeodeReward::new(items::SOAPSTONE, 1),
+                GeodeReward::new(items::MARBLE, 1),
+                GeodeReward::new(items::LUNARITE, 1),
+                GeodeReward::new(items::AERINITE, 1),
+                GeodeReward::new(items::IRON_ORE, 3),
+                GeodeReward::new(items::FROZEN_TEAR, 1),
+                GeodeReward::new(items::AERINITE, 1),
+            ],
+        );
+    }
+
+    #[test]
+    fn magma_geode_prediction_returns_correct_results() {
+        // Data was verified with mousepounds predictor.
+        assert_eq!(
+            prediction_test(GeodeType::MagmaGeode, 1).unwrap(),
+            vec![
+                GeodeReward::new(items::BIXITE, 1),
+                GeodeReward::new(items::STONE, 3),
+                GeodeReward::new(items::OBSIDIAN, 1),
+                GeodeReward::new(items::BASALT, 1),
+                GeodeReward::new(items::BASALT, 1),
+                GeodeReward::new(items::NEPTUNITE, 1),
+                GeodeReward::new(items::BIXITE, 1),
+                GeodeReward::new(items::IRIDIUM_ORE, 2),
+                GeodeReward::new(items::FIRE_QUARTZ, 1),
+                GeodeReward::new(items::BIXITE, 1),
+            ],
+        );
+    }
+
+    #[test]
+    fn omni_geode_prediction_returns_correct_results() {
+        // Data was verified with mousepounds predictor.
+        assert_eq!(
+            prediction_test(GeodeType::OmniGeode, 1).unwrap(),
+            vec![
+                GeodeReward::new(items::LUNARITE, 1),
+                GeodeReward::new(items::STONE, 3),
+                GeodeReward::new(items::FLUORAPATITE, 1),
+                GeodeReward::new(items::TIGERSEYE, 1),
+                GeodeReward::new(items::GEMINITE, 1),
+                GeodeReward::new(items::LIMESTONE, 1),
+                GeodeReward::new(items::HEMATITE, 1),
+                GeodeReward::new(items::IRIDIUM_ORE, 2),
+                GeodeReward::new(items::EARTH_CRYSTAL, 1),
+                GeodeReward::new(items::FIRE_OPAL, 1),
+            ],
+        );
+    }
+
+    #[test]
+    fn artifact_trove_prediction_returns_correct_results() {
+        // Data was verified with mousepounds predictor.
+        assert_eq!(
+            prediction_test(GeodeType::ArtifactTrove, 1).unwrap(),
+            vec![
+                GeodeReward::new(items::RARE_DISC, 1),
+                GeodeReward::new(items::DWARVISH_HELM, 1),
+                GeodeReward::new(items::ANCIENT_DOLL, 1),
+                GeodeReward::new(items::ORNAMENTAL_FAN, 1),
+                GeodeReward::new(items::CHIPPED_AMPHORA, 1),
+                GeodeReward::new(items::CHIPPED_AMPHORA, 1),
+                GeodeReward::new(items::ELVISH_JEWELRY, 1),
+                GeodeReward::new(items::ANCIENT_DRUM, 1),
+                GeodeReward::new(items::BONE_FLUTE, 1),
+                GeodeReward::new(items::ANCIENT_DOLL, 1),
+            ],
+        );
+    }
 }

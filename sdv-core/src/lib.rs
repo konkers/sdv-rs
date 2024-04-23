@@ -1,4 +1,9 @@
-use std::str::FromStr;
+use std::{
+    collections::HashMap,
+    fmt::{Debug, Display},
+    str::FromStr,
+    sync::{Mutex, MutexGuard, OnceLock},
+};
 
 use anyhow::anyhow;
 use nom::{
@@ -144,7 +149,7 @@ fn item_id(input: &str) -> IResult<&str, ItemId> {
     ))(input)
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub enum ItemId {
     BigCraftable(u32),
     Boot(u32),
@@ -161,6 +166,94 @@ pub enum ItemId {
     Weapon(u32),
 }
 
+impl ItemId {
+    fn get_lookup_table() -> MutexGuard<'static, HashMap<Self, String>> {
+        static MAP: OnceLock<Mutex<HashMap<ItemId, String>>> = OnceLock::new();
+        MAP.get_or_init(Default::default)
+            .lock()
+            .expect("Let's hope the lock isn't poisoned")
+    }
+
+    fn add_lookup_entry(&self, display: &str) {
+        let mut table = Self::get_lookup_table();
+        table.insert(self.clone(), display.to_string());
+    }
+
+    fn lookup_display(&self) -> Option<String> {
+        let table = Self::get_lookup_table();
+        table.get(self).cloned()
+    }
+}
+
+impl Display for ItemId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(display) = self.lookup_display() {
+            f.write_str(&display)
+        } else {
+            match self {
+                ItemId::BigCraftable(v) => f.write_fmt(format_args!("BigCraftable({v}")),
+                ItemId::Boot(v) => f.write_fmt(format_args!("Boot({v})")),
+                ItemId::Flooring(v) => f.write_fmt(format_args!("Flooring({v})")),
+                ItemId::Furniture(v) => f.write_fmt(format_args!("Furnature({v})")),
+                ItemId::Hat(v) => f.write_fmt(format_args!("Hat({v})")),
+                ItemId::Object(v) => f.write_fmt(format_args!("Object({v})")),
+                ItemId::Mannequin(v) => f.write_fmt(format_args!("Mannequin({v})")),
+                ItemId::Pants(v) => f.write_fmt(format_args!("Pants({v})")),
+                ItemId::Shirt(v) => f.write_fmt(format_args!("Shirt({v})")),
+                ItemId::Tool(v) => f.write_fmt(format_args!("Tool({v})")),
+                ItemId::Trinket(v) => f.write_fmt(format_args!("Trinket({v})")),
+                ItemId::Wallpaper(v) => f.write_fmt(format_args!("Wallpaper({v})")),
+                ItemId::Weapon(v) => f.write_fmt(format_args!("Weapon({v})")),
+            }
+        }
+    }
+}
+
+impl Debug for ItemId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let display = self.lookup_display();
+        match self {
+            Self::BigCraftable(arg0) => f
+                .debug_tuple("BigCraftable")
+                .field(arg0)
+                .field(&display)
+                .finish(),
+            Self::Boot(arg0) => f.debug_tuple("Boot").field(arg0).field(&display).finish(),
+            Self::Flooring(arg0) => f
+                .debug_tuple("Flooring")
+                .field(arg0)
+                .field(&display)
+                .finish(),
+            Self::Furniture(arg0) => f
+                .debug_tuple("Furniture")
+                .field(arg0)
+                .field(&display)
+                .finish(),
+            Self::Hat(arg0) => f.debug_tuple("Hat").field(arg0).field(&display).finish(),
+            Self::Object(arg0) => f.debug_tuple("Object").field(arg0).field(&display).finish(),
+            Self::Mannequin(arg0) => f
+                .debug_tuple("Mannequin")
+                .field(arg0)
+                .field(&display)
+                .finish(),
+            Self::Pants(arg0) => f.debug_tuple("Pants").field(arg0).field(&display).finish(),
+            Self::Shirt(arg0) => f.debug_tuple("Shirt").field(arg0).field(&display).finish(),
+            Self::Tool(arg0) => f.debug_tuple("Tool").field(arg0).field(&display).finish(),
+            Self::Trinket(arg0) => f
+                .debug_tuple("Trinket")
+                .field(arg0)
+                .field(&display)
+                .finish(),
+            Self::Wallpaper(arg0) => f
+                .debug_tuple("Wallpaper")
+                .field(arg0)
+                .field(&display)
+                .finish(),
+            Self::Weapon(arg0) => f.debug_tuple("Weapon").field(arg0).field(&display).finish(),
+        }
+    }
+}
+
 impl FromStr for ItemId {
     type Err = anyhow::Error;
 
@@ -169,6 +262,7 @@ impl FromStr for ItemId {
         if !rest.is_empty() {
             return Err(anyhow!("trailing input at end of valid item id \"{s}\""));
         }
+        id.add_lookup_entry(s);
         Ok(id)
     }
 }

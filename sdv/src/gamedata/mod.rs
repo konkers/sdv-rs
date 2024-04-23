@@ -26,6 +26,7 @@ pub mod fish;
 pub mod garbage;
 pub mod locale;
 pub mod location;
+pub mod location_context;
 pub mod npc_gift_tastes;
 pub mod object;
 pub mod recipe;
@@ -33,18 +34,14 @@ pub mod recipe;
 // pub mod map;
 // pub mod texture;
 
-pub use big_craftable::BigCraftableData;
-pub use bundle::Bundle;
-pub use character::CharacterData;
-pub use fish::Fish;
-pub use locale::Locale;
-pub use npc_gift_tastes::NpcGiftTastes;
-pub use object::ObjectData;
-pub use recipe::Recipe;
+pub use self::{
+    big_craftable::BigCraftableData, bundle::Bundle, character::CharacterData, fish::Fish,
+    garbage::GarbageCanData, locale::Locale, location::LocationData,
+    location_context::LocationContextData, npc_gift_tastes::NpcGiftTastes, object::ObjectData,
+    recipe::Recipe,
+};
 
 use crate::FromJsonReader;
-
-use self::{garbage::GarbageCanData, location::LocationData};
 
 // Needs to be updated for Serde
 // pub use map::{Map, Tile};
@@ -206,9 +203,10 @@ pub struct GameDataRaw {
     pub crafting_recipies: IndexMap<String, Recipe>,
     pub fish: IndexMap<String, Fish>,
     pub garbage_cans: GarbageCanData,
-    pub objects: IndexMap<String, ObjectData>,
-    pub npc_gift_tastes: IndexMap<String, NpcGiftTastes>,
     pub locations: IndexMap<String, LocationData>,
+    pub location_contexts: IndexMap<String, LocationContextData>,
+    pub npc_gift_tastes: IndexMap<String, NpcGiftTastes>,
+    pub objects: IndexMap<String, ObjectData>,
 }
 
 impl From<&GameData> for GameDataRaw {
@@ -221,9 +219,10 @@ impl From<&GameData> for GameDataRaw {
             crafting_recipies: data.crafting_recipies.clone(),
             fish: data.fish.clone(),
             garbage_cans: data.garbage_cans.clone(),
-            objects: data.objects.clone(),
-            npc_gift_tastes: data.npc_gift_tastes.clone(),
             locations: data.locations.clone(),
+            location_contexts: data.location_contexts.clone(),
+            npc_gift_tastes: data.npc_gift_tastes.clone(),
+            objects: data.objects.clone(),
         }
     }
 }
@@ -237,9 +236,10 @@ pub struct GameData {
     pub crafting_recipies: IndexMap<String, Recipe>,
     pub fish: IndexMap<String, Fish>,
     pub garbage_cans: GarbageCanData,
-    pub objects: IndexMap<String, ObjectData>,
-    pub npc_gift_tastes: IndexMap<String, NpcGiftTastes>,
     pub locations: IndexMap<String, LocationData>,
+    pub location_contexts: IndexMap<String, LocationContextData>,
+    pub npc_gift_tastes: IndexMap<String, NpcGiftTastes>,
+    pub objects: IndexMap<String, ObjectData>,
     object_name_map: HashMap<String, String>,
     object_id_map: HashMap<ItemId, String>,
     content_dir: Option<PathBuf>,
@@ -287,9 +287,10 @@ impl GameData {
             crafting_recipies: raw.crafting_recipies,
             fish: raw.fish,
             garbage_cans: raw.garbage_cans,
-            objects: raw.objects,
-            npc_gift_tastes: raw.npc_gift_tastes,
             locations: raw.locations,
+            location_contexts: raw.location_contexts,
+            npc_gift_tastes: raw.npc_gift_tastes,
+            objects: raw.objects,
             object_name_map,
             object_id_map,
             content_dir: None,
@@ -323,6 +324,7 @@ impl GameData {
 
         let garbage_cans = load_xnb_object(&game_content_dir, "Data/GarbageCans.xnb")?;
         let locations = load_xnb_object(&game_content_dir, "Data/Locations.xnb")?;
+        let location_contexts = load_xnb_object(&game_content_dir, "Data/LocationContexts.xnb")?;
         let objects = load_xnb_object(&game_content_dir, "Data/Objects.xnb")?;
 
         let mut npc_gift_tastes_file = data_dir.clone();
@@ -337,9 +339,10 @@ impl GameData {
             crafting_recipies,
             fish,
             garbage_cans,
-            objects,
-            npc_gift_tastes,
             locations,
+            location_contexts,
+            npc_gift_tastes,
+            objects,
         });
         game_data.content_dir = Some(game_content_dir.clone());
 

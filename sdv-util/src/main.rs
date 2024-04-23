@@ -134,6 +134,7 @@ enum DumpOpt {
     Garbage(DumpOpts),
     Locale(DumpOpts),
     Locations(DumpOpts),
+    LocationContexts(DumpOpts),
     Map(DumpMapOpts),
     NpcGiftTastes(DumpOpts),
     Objects(DumpOpts),
@@ -1000,6 +1001,13 @@ fn cmd_dump_locations(opt: &DumpOpts) -> Result<()> {
     Ok(())
 }
 
+fn cmd_dump_location_contexts(opt: &DumpOpts) -> Result<()> {
+    let data = GameData::from_content_dir(opt.content.get()?)?;
+
+    dump_data(opt, &data.location_contexts)?;
+    Ok(())
+}
+
 fn cmd_dump_objects(opt: &DumpOpts) -> Result<()> {
     let data = GameData::from_content_dir(opt.content.get()?)?;
 
@@ -1063,6 +1071,7 @@ fn cmd_dump(opt: &DumpOpt) -> Result<()> {
         DumpOpt::Garbage(o) => cmd_dump_garbage(o),
         DumpOpt::Locale(o) => cmd_dump_locale(o),
         DumpOpt::Locations(o) => cmd_dump_locations(o),
+        DumpOpt::LocationContexts(o) => cmd_dump_location_contexts(o),
         DumpOpt::Objects(o) => cmd_dump_objects(o),
         DumpOpt::Map(o) => cmd_dump_map(o),
         DumpOpt::NpcGiftTastes(o) => cmd_dump_npc_gift_tastes(o),

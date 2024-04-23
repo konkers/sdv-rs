@@ -14,10 +14,12 @@
 //! [`MouseyPounds' Stardew Predictor`]: https://github.com/MouseyPounds/stardew-predictor/blob/master/cs-random.js
 //! [`Microsoft's .NET Reference Source`]: http://referencesource.microsoft.com/#mscorlib/system/random.cs
 
+use std::num::Wrapping;
+
 use anyhow::{anyhow, Result};
 use xxhash_rust::xxh32::Xxh32;
 
-const SEED: i32 = 161803398;
+const SEED: Wrapping<i32> = Wrapping(161803398);
 const SEED_ARRAY_LEN: usize = 56;
 
 pub trait SeedGenerator {
@@ -72,27 +74,28 @@ impl SeedGenerator for HashedSeedGenerator {
 pub struct Rng {
     next: usize,
     next_p: usize,
-    seed_array: [i32; SEED_ARRAY_LEN],
+    seed_array: [Wrapping<i32>; SEED_ARRAY_LEN],
 }
 
 impl Rng {
     /// Create and new [Rng].
     pub fn new(seed: i32) -> Rng {
-        let subtraction = if seed == i32::MIN {
-            i32::MAX
+        let seed = Wrapping(seed);
+        let subtraction = if seed == Wrapping(i32::MIN) {
+            Wrapping(i32::MAX)
         } else {
-            seed.abs()
+            Wrapping(seed.0.abs())
         };
         let mut m_j = SEED - subtraction;
-        let mut seed_array = [0i32; SEED_ARRAY_LEN];
+        let mut seed_array = [Wrapping(0i32); SEED_ARRAY_LEN];
         seed_array[SEED_ARRAY_LEN - 1] = m_j;
-        let mut m_k = 1;
+        let mut m_k = Wrapping(1);
 
         for i in 1..(SEED_ARRAY_LEN - 1) {
             let ii = (21 * i) % (SEED_ARRAY_LEN - 1);
             seed_array[ii] = m_k;
             m_k = m_j - m_k;
-            if m_k < 0 {
+            if m_k < Wrapping(0) {
                 m_k += i32::MAX;
             }
             m_j = seed_array[ii];
@@ -101,7 +104,7 @@ impl Rng {
         for _ in 1..5 {
             for i in 1..SEED_ARRAY_LEN {
                 seed_array[i] -= seed_array[1 + (i + 30) % (SEED_ARRAY_LEN - 1)];
-                if seed_array[i] < 0 {
+                if seed_array[i] < Wrapping(0) {
                     seed_array[i] += i32::MAX;
                 }
             }
@@ -126,10 +129,10 @@ impl Rng {
 
         let mut val = self.seed_array[next] - self.seed_array[next_p];
 
-        if val == i32::MAX {
+        if val == Wrapping(i32::MAX) {
             val -= 1;
         }
-        if val < 0 {
+        if val < Wrapping(0) {
             val += i32::MAX;
         }
 
@@ -138,7 +141,7 @@ impl Rng {
         self.next = next;
         self.next_p = next_p;
 
-        val
+        val.0
     }
 
     /// Pull a floating point sample from the [Rng].

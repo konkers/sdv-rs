@@ -62,7 +62,7 @@ impl LocationWeather {
         } else if self.is_lightning {
             Weather::Storm
         } else if self.is_raining {
-            Weather::Snow
+            Weather::Rain
         } else {
             Weather::Sun
         }

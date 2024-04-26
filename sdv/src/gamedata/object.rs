@@ -68,6 +68,8 @@ pub struct ObjectData {
     pub geode_drops_default_items: bool,
     pub geode_drops: Option<Vec<ObjectGeodeDropData>>,
     pub artifact_spot_chances: Option<IndexMap<String, f32>>,
+    pub can_be_given_as_gift: bool,
+    pub can_be_trashed: bool,
     pub exclude_from_fishing_collection: bool,
     pub exclude_from_shipping_collection: bool,
     pub exclude_from_random_sale: bool,

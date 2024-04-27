@@ -2,12 +2,13 @@ use std::convert::{TryFrom, TryInto};
 
 use anyhow::Result;
 use num_derive::FromPrimitive;
+use sdv_core::HashedString;
 use strum::{EnumIter, EnumString};
 
 use crate::{
     common::items,
     gamedata::object::ObjectGeodeDropData,
-    generate_seed,
+    generate_seed, hashed_match,
     predictor::Drop,
     rng::{Rng, SeedGenerator},
     GameData,
@@ -91,15 +92,15 @@ impl Geode {
 }
 
 // Stub until we get real condition parsing working
-fn evaulate_condition(condition: &Option<String>, geodes_cracked: i32) -> bool {
+fn evaulate_condition(condition: &Option<HashedString>, geodes_cracked: i32) -> bool {
     let Some(condition) = condition else {
         return true;
     };
 
-    match condition.as_str() {
-        "PLAYER_STAT Current GeodesCracked 16" => geodes_cracked >= 16,
-        "!PLAYER_HAS_MAIL Current goldenCoconutHat" => true,
-        _ => panic!("Unkown condition {}", condition),
+    match condition {
+        hashed_match!("PLAYER_STAT Current GeodesCracked 16") => geodes_cracked >= 16,
+        hashed_match!("!PLAYER_HAS_MAIL Current goldenCoconutHat") => true,
+        _ => panic!("Unkown condition {:x?}", condition),
     }
 }
 

@@ -1,6 +1,7 @@
 use std::{cmp::max, convert::TryFrom};
 
 use anyhow::{anyhow, Result};
+use sdv_core::HashedString;
 
 use crate::{
     common::{GenericSpawnItemDataWithCondition, ItemId, Season},
@@ -122,7 +123,7 @@ enum DropItems {
 /// predition.
 #[derive(Clone, Debug)]
 pub struct Drop {
-    condition: Option<String>,
+    condition: Option<HashedString>,
     min_stack: i32,
     max_stack: i32,
     drop: DropItems,
@@ -194,7 +195,7 @@ impl TryFrom<&GenericSpawnItemDataWithCondition> for Drop {
         };
 
         Ok(Self {
-            condition,
+            condition: condition.map(|condition| HashedString::new(&condition)),
             min_stack,
             max_stack,
             drop: drop?,

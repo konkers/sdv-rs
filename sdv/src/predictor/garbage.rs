@@ -1,13 +1,14 @@
 use std::convert::TryFrom;
 
 use anyhow::{anyhow, Result};
+use sdv_core::HashedString;
 use strum::{Display, EnumIter, EnumString};
 use xxhash_rust::xxh32::xxh32;
 
 use super::{Drop, DropReward, PredictionGameState};
 use crate::{
     gamedata::garbage::GarbageCanData,
-    generate_day_save_seed, generate_seed,
+    generate_day_save_seed, generate_seed, hashed_match,
     rng::{Rng, SeedGenerator},
 };
 
@@ -165,45 +166,45 @@ impl From<ConditionResult> for bool {
 fn evaulate_condition<G: SeedGenerator>(
     r: &mut Rng,
     state: &PredictionGameState,
-    condition: &Option<String>,
+    condition: &Option<HashedString>,
 ) -> ConditionResult {
     let Some(condition) = condition else {
         return ConditionResult::Static(true);
     };
 
-    match condition.as_str() {
-        "PLAYER_STAT Current trashCansChecked 20, RANDOM .002" => {
+    match condition {
+        hashed_match!("PLAYER_STAT Current trashCansChecked 20, RANDOM .002") => {
             ConditionResult::Static(state.trash_cans_checked >= 20 && r.next_weighted_bool(0.002))
         }
-        "PLAYER_STAT Current trashCansChecked 50, RANDOM .002" => {
+        hashed_match!("PLAYER_STAT Current trashCansChecked 50, RANDOM .002") => {
             ConditionResult::Static(state.trash_cans_checked >= 50 && r.next_weighted_bool(0.002))
         }
-        "PLAYER_SPECIAL_ORDER_RULE_ACTIVE Current DROP_QI_BEANS, RANDOM 0.25" => {
+        hashed_match!("PLAYER_SPECIAL_ORDER_RULE_ACTIVE Current DROP_QI_BEANS, RANDOM 0.25") => {
             ConditionResult::Static(state.qi_beans_quest_active && r.next_weighted_bool(0.25))
         }
-        "PLAYER_STAT Current trashCansChecked 20, RANDOM .01" => {
+        hashed_match!("PLAYER_STAT Current trashCansChecked 20, RANDOM .01") => {
             ConditionResult::Static(state.trash_cans_checked >= 20 && r.next_weighted_bool(0.01))
         }
-        "RANDOM 0.2 @addDailyLuck" => daily_luck_bool(r, 0.2),
-        "SYNCED_RANDOM day garbage_joja 0.2, \
-	 PLAYER_HAS_MAIL Host ccMovieTheater, \
-         !PLAYER_HAS_MAIL Host ccMovieTheaterJoja" => {
-            synced_random!(day, G, "garbage_joja", 0.2, state)
-                .and(state.has_cc_movie_theater_mail)
-                .and(!state.has_cc_movie_theater_joja_mail)
-        }
-        "SYNCED_RANDOM day garbage_joja 0.2, !PLAYER_HAS_SEEN_EVENT Any 191393" => {
+        hashed_match!("RANDOM 0.2 @addDailyLuck") => daily_luck_bool(r, 0.2),
+        hashed_match!(
+            "SYNCED_RANDOM day garbage_joja 0.2, \
+	                    PLAYER_HAS_MAIL Host ccMovieTheater, \
+                        !PLAYER_HAS_MAIL Host ccMovieTheaterJoja"
+        ) => synced_random!(day, G, "garbage_joja", 0.2, state)
+            .and(state.has_cc_movie_theater_mail)
+            .and(!state.has_cc_movie_theater_joja_mail),
+        hashed_match!("SYNCED_RANDOM day garbage_joja 0.2, !PLAYER_HAS_SEEN_EVENT Any 191393") => {
             synced_random!(day, G, "garbage_joja", 0.2, state).and(!state.seen_event_191383)
         }
-        "SYNCED_RANDOM day garbage_museum_535 0.2 @addDailyLuck, \
-	 SYNCED_RANDOM day garbage_museum_749 0.05" => {
+        hashed_match!(
+            "SYNCED_RANDOM day garbage_museum_535 0.2 @addDailyLuck, \
+	                    SYNCED_RANDOM day garbage_museum_749 0.05"
+        ) => synced_random!(day_luck, G, "garbage_museum_535", 0.2, state)
+            .and_result(synced_random!(day, G, "garbage_museum_749", 0.05, state)),
+        hashed_match!("SYNCED_RANDOM day garbage_museum_535 0.2 @addDailyLuck") => {
             synced_random!(day_luck, G, "garbage_museum_535", 0.2, state)
-                .and_result(synced_random!(day, G, "garbage_museum_749", 0.05, state))
         }
-        "SYNCED_RANDOM day garbage_museum_535 0.2 @addDailyLuck" => {
-            synced_random!(day_luck, G, "garbage_museum_535", 0.2, state)
-        }
-        "SYNCED_RANDOM day garbage_saloon_dish 0.2 @addDailyLuck" => {
+        hashed_match!("SYNCED_RANDOM day garbage_saloon_dish 0.2 @addDailyLuck") => {
             synced_random!(day_luck, G, "garbage_saloon_dish", 0.2, state)
         }
         _ => panic!("Unkown condition {}", condition),

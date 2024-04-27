@@ -1,13 +1,35 @@
+use sdv_core::HashedString;
 use xxhash_rust::xxh32::xxh32;
 
 use crate::{
     common::{Season, Weather},
     gamedata::LocationContextData,
-    generate_day_save_seed, generate_seed,
+    generate_day_save_seed, generate_seed, hashed_match,
     rng::{Rng, SeedGenerator},
 };
 
 use super::PredictionGameState;
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct WeatherLocation {
+    conditions: Vec<Option<HashedString>>,
+}
+
+impl From<&LocationContextData> for WeatherLocation {
+    fn from(value: &LocationContextData) -> Self {
+        let conditions = value
+            .weather_condidtions
+            .iter()
+            .map(|condition| {
+                condition
+                    .condition
+                    .as_ref()
+                    .map(|value| HashedString::new(value))
+            })
+            .collect();
+        Self { conditions }
+    }
+}
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct WeatherPrediction {
@@ -159,7 +181,7 @@ fn is_green_rain_day<G: SeedGenerator>(state: &PredictionGameState) -> bool {
 fn evaulate_condition<G: SeedGenerator>(
     //    r: &mut Rng,
     state: &PredictionGameState,
-    condition: &Option<String>,
+    condition: &Option<HashedString>,
 ) -> Option<PartialPrediction> {
     let Some(condition) = condition else {
         return Some(PartialPrediction::new_condition(
@@ -169,9 +191,9 @@ fn evaulate_condition<G: SeedGenerator>(
         ));
     };
 
-    match condition.as_str() {
+    match condition {
         // GreenRain
-        "IS_GREEN_RAIN_DAY" => {
+        hashed_match!("IS_GREEN_RAIN_DAY") => {
             // Since conditions are evaluated as if they were the previous day,
             // `getWeatherModificationsForDate()` also check for green rain with
             // the correct day, and there can only be one green rain day per year,
@@ -181,7 +203,7 @@ fn evaulate_condition<G: SeedGenerator>(
         }
 
         // FirstWeekSun
-        "SEASON_DAY Spring 0 Spring 1 Spring 2 Spring 4, YEAR 1" => {
+        hashed_match!("SEASON_DAY Spring 0 Spring 1 Spring 2 Spring 4, YEAR 1") => {
             if (state.is_season_day(Season::Spring, 0)
                 || state.is_season_day(Season::Spring, 1)
                 || state.is_season_day(Season::Spring, 2)
@@ -199,7 +221,7 @@ fn evaulate_condition<G: SeedGenerator>(
         } // Sun
 
         // FirstWeekRain
-        "SEASON_DAY Spring 3, YEAR 1" => {
+        hashed_match!("SEASON_DAY Spring 3, YEAR 1") => {
             if state.is_season_day(Season::Spring, 3) && state.is_year(1) {
                 Some(PartialPrediction::new_condition(
                     Weather::Rain,
@@ -212,7 +234,7 @@ fn evaulate_condition<G: SeedGenerator>(
         }
 
         // SummerStorm
-        "SEASON summer, SYNCED_SUMMER_RAIN_RANDOM, RANDOM .85" => {
+        hashed_match!("SEASON summer, SYNCED_SUMMER_RAIN_RANDOM, RANDOM .85") => {
             if state.is_season(Season::Summer) && synced_summer_rain_random::<G>(state) {
                 Some(PartialPrediction::new_condition(
                     Weather::Storm,
@@ -225,8 +247,10 @@ fn evaulate_condition<G: SeedGenerator>(
         }
 
         // SummerStorm2
-        "SEASON summer, SYNCED_SUMMER_RAIN_RANDOM, RANDOM .25, \
-	 DAYS_PLAYED 28, !DAY_OF_MONTH 1, !DAY_OF_MONTH 2" => {
+        hashed_match!(
+            "SEASON summer, SYNCED_SUMMER_RAIN_RANDOM, RANDOM .25, \
+	     DAYS_PLAYED 28, !DAY_OF_MONTH 1, !DAY_OF_MONTH 2"
+        ) => {
             if state.is_season(Season::Summer)
                 && synced_summer_rain_random::<G>(state)
                 && state.days_played > 28
@@ -244,8 +268,10 @@ fn evaulate_condition<G: SeedGenerator>(
         }
 
         // FallStorm
-        "SEASON spring fall, SYNCED_RANDOM day location_weather .183, \
-	 RANDOM .25, DAYS_PLAYED 28, !DAY_OF_MONTH 1, !DAY_OF_MONTH 2" => {
+        hashed_match!(
+            "SEASON spring fall, SYNCED_RANDOM day location_weather .183, \
+	     RANDOM .25, DAYS_PLAYED 28, !DAY_OF_MONTH 1, !DAY_OF_MONTH 2"
+        ) => {
             if (state.is_season(Season::Spring) || state.is_season(Season::Fall))
                 && synced_day_random::<G>(state, "location_weather", 0.183)
                 && state.days_played > 28
@@ -263,7 +289,7 @@ fn evaulate_condition<G: SeedGenerator>(
         }
 
         // WinterSnow
-        "SEASON winter, SYNCED_RANDOM day location_weather 0.63" => {
+        hashed_match!("SEASON winter, SYNCED_RANDOM day location_weather 0.63") => {
             if state.is_season(Season::Winter)
                 && synced_day_random::<G>(state, "location_weather", 0.63)
             {
@@ -278,7 +304,7 @@ fn evaulate_condition<G: SeedGenerator>(
         }
 
         // SummerRain
-        "SEASON summer, SYNCED_SUMMER_RAIN_RANDOM, !DAY_OF_MONTH 1" => {
+        hashed_match!("SEASON summer, SYNCED_SUMMER_RAIN_RANDOM, !DAY_OF_MONTH 1") => {
             if state.is_season(Season::Summer)
                 && synced_summer_rain_random::<G>(state)
                 && !state.is_day_of_month(1)
@@ -294,7 +320,7 @@ fn evaulate_condition<G: SeedGenerator>(
         }
 
         // FallRain
-        "SEASON spring fall, SYNCED_RANDOM day location_weather 0.183" => {
+        hashed_match!("SEASON spring fall, SYNCED_RANDOM day location_weather 0.183") => {
             if (state.is_season(Season::Spring) || state.is_season(Season::Fall))
                 && synced_day_random::<G>(state, "location_weather", 0.183)
             {
@@ -309,7 +335,7 @@ fn evaulate_condition<G: SeedGenerator>(
         }
 
         // SpringWind
-        "DAYS_PLAYED 3, SEASON spring, RANDOM .20" => {
+        hashed_match!("DAYS_PLAYED 3, SEASON spring, RANDOM .20") => {
             if state.days_played > 3 && state.is_season(Season::Spring) {
                 Some(PartialPrediction::new_condition(
                     Weather::Wind,
@@ -322,7 +348,7 @@ fn evaulate_condition<G: SeedGenerator>(
         }
 
         // FallWind
-        "DAYS_PLAYED 3, SEASON fall, RANDOM .6" => {
+        hashed_match!("DAYS_PLAYED 3, SEASON fall, RANDOM .6") => {
             if state.days_played > 3 && state.is_season(Season::Spring) {
                 Some(PartialPrediction::new_condition(
                     Weather::Wind,
@@ -339,7 +365,7 @@ fn evaulate_condition<G: SeedGenerator>(
 }
 
 pub fn predict_weather<G: SeedGenerator>(
-    location_context: &LocationContextData,
+    location: &WeatherLocation,
     state: &PredictionGameState,
 ) -> WeatherPrediction {
     // TODO: explore ways of returning weather that do not involve allocation.
@@ -397,8 +423,8 @@ pub fn predict_weather<G: SeedGenerator>(
 
     let mut partial_predictions = Vec::new();
     let mut current_probability = 1.0;
-    for condition in &location_context.weather_condidtions {
-        if let Some(mut weather) = evaulate_condition::<G>(&state, &condition.condition) {
+    for condition in &location.conditions {
+        if let Some(mut weather) = evaulate_condition::<G>(&state, condition) {
             let base_chance = weather.chance;
             weather.chance *= current_probability;
             current_probability *= 1.0 - base_chance;
@@ -426,7 +452,7 @@ mod tests {
     fn weather_prediction_returns_correct_restults() {
         let data =
             GameData::from_content_dir(crate::gamedata::get_game_content_path().unwrap()).unwrap();
-        let location = data.location_contexts.get("Default").unwrap();
+        let location = data.location_contexts.get("Default").unwrap().into();
         let mut state = PredictionGameState {
             game_id: 7269403,
             ..Default::default()
@@ -434,7 +460,7 @@ mod tests {
 
         for day in 1..(4 * 28) {
             state.days_played = day;
-            let weather = predict_weather::<HashedSeedGenerator>(location, &state);
+            let weather = predict_weather::<HashedSeedGenerator>(&location, &state);
             let expected = match (state.season(), state.day_of_month()) {
                 (Season::Spring, 3) => WeatherPrediction::rain(),
 

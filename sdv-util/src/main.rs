@@ -138,6 +138,7 @@ enum DumpOpt {
     Map(DumpMapOpts),
     NpcGiftTastes(DumpOpts),
     Objects(DumpOpts),
+    PassiveFestivals(DumpOpts),
     Save(SaveFileLoc),
 }
 
@@ -1024,6 +1025,13 @@ fn cmd_dump_objects(opt: &DumpOpts) -> Result<()> {
     Ok(())
 }
 
+fn cmd_dump_passive_festivals(opt: &DumpOpts) -> Result<()> {
+    let data = GameData::from_content_dir(opt.content.get()?)?;
+
+    dump_data(opt, &data.passive_festivals)?;
+    Ok(())
+}
+
 fn cmd_dump_map(opt: &DumpMapOpts) -> Result<()> {
     let data = GameData::from_content_dir(opt.dump.content.get()?)?;
     let map = data.load_map(&opt.map)?;
@@ -1073,6 +1081,7 @@ fn cmd_dump(opt: &DumpOpt) -> Result<()> {
         DumpOpt::Locations(o) => cmd_dump_locations(o),
         DumpOpt::LocationContexts(o) => cmd_dump_location_contexts(o),
         DumpOpt::Objects(o) => cmd_dump_objects(o),
+        DumpOpt::PassiveFestivals(o) => cmd_dump_passive_festivals(o),
         DumpOpt::Map(o) => cmd_dump_map(o),
         DumpOpt::NpcGiftTastes(o) => cmd_dump_npc_gift_tastes(o),
         DumpOpt::Save(o) => cmd_dump_save(o),

@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use xnb::{xnb_name, XnbType};
 
 use crate::common::{
-    GenericSpawnItemDataWithCondition, ObjectCategory, ObjectId, ObjectType, Season, XnaPoint,
+    Season, XnaPoint,
 };
 
 use super::location::LocationMusicData;

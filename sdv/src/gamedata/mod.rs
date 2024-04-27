@@ -22,6 +22,7 @@ use xnb::XnbType;
 pub mod big_craftable;
 pub mod bundle;
 pub mod character;
+pub mod festival;
 pub mod fish;
 pub mod garbage;
 pub mod locale;
@@ -35,10 +36,10 @@ pub mod recipe;
 // pub mod texture;
 
 pub use self::{
-    big_craftable::BigCraftableData, bundle::Bundle, character::CharacterData, fish::Fish,
-    garbage::GarbageCanData, locale::Locale, location::LocationData,
-    location_context::LocationContextData, npc_gift_tastes::NpcGiftTastes, object::ObjectData,
-    recipe::Recipe,
+    big_craftable::BigCraftableData, bundle::Bundle, character::CharacterData,
+    festival::PassiveFestivalData, fish::Fish, garbage::GarbageCanData, locale::Locale,
+    location::LocationData, location_context::LocationContextData, npc_gift_tastes::NpcGiftTastes,
+    object::ObjectData, recipe::Recipe,
 };
 
 use crate::FromJsonReader;
@@ -207,6 +208,7 @@ pub struct GameDataRaw {
     pub location_contexts: IndexMap<String, LocationContextData>,
     pub npc_gift_tastes: IndexMap<String, NpcGiftTastes>,
     pub objects: IndexMap<String, ObjectData>,
+    pub passive_festivals: IndexMap<String, PassiveFestivalData>,
 }
 
 impl From<&GameData> for GameDataRaw {
@@ -223,6 +225,7 @@ impl From<&GameData> for GameDataRaw {
             location_contexts: data.location_contexts.clone(),
             npc_gift_tastes: data.npc_gift_tastes.clone(),
             objects: data.objects.clone(),
+            passive_festivals: data.passive_festivals.clone(),
         }
     }
 }
@@ -240,6 +243,7 @@ pub struct GameData {
     pub location_contexts: IndexMap<String, LocationContextData>,
     pub npc_gift_tastes: IndexMap<String, NpcGiftTastes>,
     pub objects: IndexMap<String, ObjectData>,
+    pub passive_festivals: IndexMap<String, PassiveFestivalData>,
     object_name_map: HashMap<String, String>,
     object_id_map: HashMap<ItemId, String>,
     content_dir: Option<PathBuf>,
@@ -260,10 +264,20 @@ impl GameData {
             .iter_mut()
             .for_each(|(id, object)| object.id = id.clone());
 
+        // Populate location_context IDs.
+        raw.location_contexts
+            .iter_mut()
+            .for_each(|(id, context)| context.id = id.clone());
+
         // Populate object IDs.
         raw.objects
             .iter_mut()
             .for_each(|(id, object)| object.id = id.clone());
+
+        // Populate passive_festival IDs.
+        raw.passive_festivals
+            .iter_mut()
+            .for_each(|(id, festival)| festival.id = id.clone());
 
         // Calculate object_name_map.
         let object_name_map = raw
@@ -290,6 +304,7 @@ impl GameData {
             locations: raw.locations,
             location_contexts: raw.location_contexts,
             npc_gift_tastes: raw.npc_gift_tastes,
+            passive_festivals: raw.passive_festivals,
             objects: raw.objects,
             object_name_map,
             object_id_map,
@@ -331,6 +346,8 @@ impl GameData {
         npc_gift_tastes_file.push("NPCGiftTastes.xnb");
         let npc_gift_tastes = NpcGiftTastes::load(&npc_gift_tastes_file)?;
 
+        let passive_festivals = load_xnb_object(&game_content_dir, "Data/PassiveFestivals.xnb")?;
+
         let mut game_data = Self::from_game_data_raw(GameDataRaw {
             big_craftables,
             bundles,
@@ -343,6 +360,7 @@ impl GameData {
             location_contexts,
             npc_gift_tastes,
             objects,
+            passive_festivals,
         });
         game_data.content_dir = Some(game_content_dir.clone());
 

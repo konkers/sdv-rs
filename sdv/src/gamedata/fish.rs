@@ -9,7 +9,24 @@ use std::{
 };
 
 use super::{decimal, field, field_value, float, sub_field_value};
-use crate::common::{Season, TimeSpan, Weather};
+use crate::common::{Season, TimeSpan};
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub enum Weather {
+    Sunny,
+    Rainy,
+    Both,
+}
+
+impl Weather {
+    pub(crate) fn parse(i: &str) -> IResult<&str, Self> {
+        alt((
+            value(Weather::Sunny, tag("sunny")),
+            value(Weather::Rainy, tag("rainy")),
+            value(Weather::Both, tag("both")),
+        ))(i)
+    }
+}
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub enum FishBehavior {

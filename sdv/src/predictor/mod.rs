@@ -12,6 +12,7 @@ pub mod bubbles;
 pub mod garbage;
 pub mod geode;
 pub mod night_event;
+pub mod weather;
 
 /// Game state data for garbage prediction.
 #[derive(Clone, Debug, Default)]
@@ -58,6 +59,38 @@ impl PredictionGameState {
 
     pub const fn day_of_month(&self) -> u32 {
         (self.days_played - 1) % 28 + 1
+    }
+
+    pub const fn is_festival_day(&self) -> bool {
+        matches!(
+            (self.season(), self.day_of_month()),
+            (Season::Spring, 13)
+                | (Season::Spring, 24)
+                | (Season::Summer, 11)
+                | (Season::Summer, 28)
+                | (Season::Fall, 16)
+                | (Season::Fall, 27)
+                | (Season::Winter, 8)
+                | (Season::Winter, 25)
+        )
+    }
+
+    pub const fn is_day_of_month(&self, day: u32) -> bool {
+        self.day_of_month() == day
+    }
+
+    pub const fn is_season(&self, season: Season) -> bool {
+        // We cast the Season enum to its underlying u32 representation here
+        // because the PartialEq
+        self.season() as u32 == season as u32
+    }
+
+    pub const fn is_season_day(&self, season: Season, day: u32) -> bool {
+        self.is_season(season) && self.is_day_of_month(day)
+    }
+
+    pub const fn is_year(&self, year: u32) -> bool {
+        self.year() == year
     }
 }
 

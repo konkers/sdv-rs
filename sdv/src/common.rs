@@ -471,20 +471,15 @@ impl TryFrom<i32> for DayOfWeek {
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[repr(u32)]
 pub enum Weather {
-    Sunny,
-    Rainy,
-    Both,
-}
-
-impl Weather {
-    pub(crate) fn parse(i: &str) -> IResult<&str, Self> {
-        alt((
-            value(Weather::Sunny, tag("sunny")),
-            value(Weather::Rainy, tag("rainy")),
-            value(Weather::Both, tag("both")),
-        ))(i)
-    }
+    Sun,
+    Rain,
+    Wind,
+    Storm,
+    Snow,
+    Festival,
+    GreenRain,
 }
 
 impl<'a, 'input: 'a> TryFrom<NodeFinder<'a, 'input>> for ObjectCategory {

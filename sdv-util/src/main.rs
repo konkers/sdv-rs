@@ -193,13 +193,13 @@ struct GeodesOpt {
     geode_type: GeodeType,
 
     #[structopt(long)]
-    geodes_cracked: i32,
+    geodes_cracked: u32,
 
     #[structopt(long)]
     multiplayer_id: i64,
 
     #[structopt(long)]
-    deepest_mine_level: usize,
+    deepest_mine_level: u32,
 
     #[structopt(long)]
     seed: u32,
@@ -1267,14 +1267,15 @@ fn cmd_predict_geode(opt: &GeodesOpt) -> Result<()> {
     let geode = Geode::new(opt.geode_type, &data)?;
 
     for i in 0..10 {
-        let reward = predict_single_geode::<HashedSeedGenerator>(
-            opt.seed,
-            opt.multiplayer_id,
-            opt.geodes_cracked + i,
-            &geode,
-            opt.deepest_mine_level,
-            false, // qi_bean_quest_active,
-        )?;
+        let state = PredictionGameState {
+            game_id: opt.seed,
+            multiplayer_id: opt.multiplayer_id,
+            geodes_cracked: opt.geodes_cracked + i,
+            deepest_mine_level: opt.deepest_mine_level,
+            qi_beans_quest_active: false,
+            ..Default::default()
+        };
+        let reward = predict_single_geode::<HashedSeedGenerator>(&geode, &state)?;
         let object = data.get_object_by_id(&reward.item)?;
         println!("{i}: {} {}", object.name, reward.quantity);
     }

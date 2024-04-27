@@ -13,7 +13,7 @@ use crate::{
     GameData,
 };
 
-use super::DropReward;
+use super::{DropReward, PredictionGameState};
 
 #[derive(Clone, Copy, Debug, EnumIter, EnumString, Eq, FromPrimitive, Hash, PartialEq)]
 pub enum GeodeType {
@@ -107,20 +107,16 @@ fn evaulate_condition(condition: &Option<String>, geodes_cracked: i32) -> bool {
 ///
 /// TODO: add mystery box support
 pub fn predict_single_geode<G: SeedGenerator>(
-    game_id: u32,
-    multiplayer_id: i64,
-    geodes_cracked: i32,
     geode: &Geode,
-    deepest_mine_level: usize,
-    qi_bean_quest_active: bool,
+    state: &PredictionGameState,
 ) -> Result<DropReward> {
     // Logic found in StardewValley.Utility.getTreasureFromGeode()
 
     let mut rng = Rng::new(generate_seed!(
         G,
-        geodes_cracked,
-        game_id / 2,
-        (multiplayer_id as i32) / 2
+        state.geodes_cracked,
+        state.game_id / 2,
+        (state.multiplayer_id as i32) / 2
     ));
 
     // The game "prewarms" the rng.
@@ -133,7 +129,7 @@ pub fn predict_single_geode<G: SeedGenerator>(
 
     // TODO: Mystery Box logic goes here
 
-    if rng.next_double() <= 0.1 && qi_bean_quest_active {
+    if rng.next_double() <= 0.1 && state.qi_beans_quest_active {
         let quantity = if rng.next_double() < 0.25 { 5 } else { 1 };
         return Ok(DropReward::new(items::QI_BEAN, quantity));
     }
@@ -150,7 +146,7 @@ pub fn predict_single_geode<G: SeedGenerator>(
         // drops accoring to precidence
         for drop in &geode.drops {
             if !rng.next_weighted_bool(drop.chance)
-                || !evaulate_condition(&drop.drop.condition, geodes_cracked)
+                || !evaulate_condition(&drop.drop.condition, state.geodes_cracked as i32)
             {
                 continue;
             }
@@ -199,7 +195,7 @@ pub fn predict_single_geode<G: SeedGenerator>(
                 1 => items::IRON_ORE,
                 2 => items::COAL,
                 _ => {
-                    if deepest_mine_level > 75 {
+                    if state.deepest_mine_level > 75 {
                         items::GOLD_ORE
                     } else {
                         items::IRON_ORE
@@ -222,7 +218,7 @@ pub fn predict_single_geode<G: SeedGenerator>(
     let item = match rng.next_max(3) {
         0 => items::COPPER_ORE,
         1 => {
-            if deepest_mine_level > 25 {
+            if state.deepest_mine_level > 25 {
                 items::IRON_ORE
             } else {
                 items::COPPER_ORE
@@ -240,20 +236,20 @@ mod tests {
     use super::*;
 
     #[track_caller]
-    fn prediction_test(geode_type: GeodeType, geodes_cracked: i32) -> Result<Vec<DropReward>> {
+    fn prediction_test(geode_type: GeodeType, geodes_cracked: u32) -> Result<Vec<DropReward>> {
         let data = GameData::from_content_dir(crate::gamedata::get_game_content_path().unwrap())?;
         let geode = Geode::new(geode_type, &data).unwrap();
         let results: Vec<_> = (0..10)
             .map(|i| {
-                predict_single_geode::<HashedSeedGenerator>(
-                    7269403u32,
-                    -7347405514601242418i64,
-                    geodes_cracked + i,
-                    &geode,
-                    0,     // deepest_mine_level
-                    false, // qi_bean_quest_active
-                )
-                .unwrap()
+                let state = PredictionGameState {
+                    game_id: 7269403,
+                    multiplayer_id: -7347405514601242418i64,
+                    geodes_cracked: geodes_cracked + i,
+                    deepest_mine_level: 0,
+                    qi_beans_quest_active: false,
+                    ..Default::default()
+                };
+                predict_single_geode::<HashedSeedGenerator>(&geode, &state).unwrap()
             })
             .collect();
 

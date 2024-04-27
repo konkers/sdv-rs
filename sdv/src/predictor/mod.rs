@@ -18,8 +18,11 @@ pub mod weather;
 #[derive(Clone, Debug, Default)]
 pub struct PredictionGameState {
     pub game_id: u32,
+    pub multiplayer_id: i64,
     pub days_played: u32,
     pub daily_luck: f64,
+    pub geodes_cracked: u32,
+    pub deepest_mine_level: u32,
     pub has_trash_book: bool,
     pub trash_cans_checked: usize,
     pub qi_beans_quest_active: bool,

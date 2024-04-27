@@ -1,7 +1,7 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use sdv_core::ItemId;
-use syn::{parse::Parse, parse_macro_input, LitStr};
+use sdv_core::{HashedString, ItemId};
+use syn::{parse::Parse, parse_macro_input, LitStr, Path, Token};
 
 struct ItemIdArg {
     id: ItemId,
@@ -49,4 +49,53 @@ pub fn _item_id(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as ItemIdArg);
 
     _item_id_macro_impl(input).into()
+}
+
+struct HashedStringArgs {
+    core_crate_path: Path,
+    value: LitStr,
+}
+
+impl Parse for HashedStringArgs {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let core_crate_path: Path = input.parse()?;
+        let _: Token![,] = input.parse()?;
+        let value: LitStr = input.parse()?;
+        Ok(Self {
+            core_crate_path,
+            value,
+        })
+    }
+}
+
+#[proc_macro]
+pub fn _hashed_string(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input = parse_macro_input!(input as HashedStringArgs);
+    let value = input.value;
+    let core_crate_path = input.core_crate_path;
+    let hashed = HashedString::new(&value.value());
+    let hash = hashed.hash;
+    quote! {{
+        #core_crate_path::HashedString{
+            hash: #hash,
+            original: #core_crate_path::OriginalString::Static(#value),
+        }
+    }}
+    .into()
+}
+
+#[proc_macro]
+pub fn _hashed_match(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input = parse_macro_input!(input as HashedStringArgs);
+    let value = input.value;
+    let core_crate_path = input.core_crate_path;
+    let hashed = HashedString::new(&value.value());
+    let hash = hashed.hash;
+    quote! {
+        #core_crate_path::HashedString{
+            hash: #hash,
+            ..
+        }
+    }
+    .into()
 }

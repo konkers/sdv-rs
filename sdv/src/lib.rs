@@ -16,9 +16,11 @@ where
 }
 
 // exports for proc macros
+#[doc(hidden)]
 pub mod __private {
     pub use crate::common::ItemId;
-    pub use sdv_macro::_item_id;
+    pub use sdv_core;
+    pub use sdv_macro::{_hashed_match, _hashed_string, _item_id};
 }
 
 #[macro_export]
@@ -27,6 +29,20 @@ macro_rules! item_id {
         use $crate::__private as __sdv_crate_private;
         $crate::__private::_item_id!($item_id)
     }};
+}
+
+#[macro_export]
+macro_rules! hashed_string {
+    ($s:literal) => {
+        $crate::__private::_hashed_string!($crate::__private::sdv_core, $s)
+    };
+}
+
+#[macro_export]
+macro_rules! hashed_match {
+    ($s:literal) => {
+        $crate::__private::_hashed_match!($crate::__private::sdv_core, $s)
+    };
 }
 
 #[macro_export]
@@ -91,6 +107,7 @@ macro_rules! generate_day_save_seed {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
     fn item_id_macro_generates_correct_item_ids() {
         use xxhash_rust::xxh32::xxh32;
@@ -101,5 +118,37 @@ mod tests {
         assert_eq!(item_id!("123"), common::ItemId::Object(hash_123));
         assert_eq!(item_id!("(O)ItemId"), common::ItemId::Object(hash_item_id));
         assert_eq!(item_id!("ItemId"), common::ItemId::Object(hash_item_id));
+    }
+
+    #[test]
+    fn hashed_string_macro_generates_correct_hashed_strings() {
+        assert_eq!(
+            hashed_string!("Test String"),
+            common::HashedString::new("Test String")
+        );
+        assert_eq!(
+            hashed_string!("Test String"),
+            common::HashedString::new_static("Test String")
+        );
+        assert_ne!(
+            hashed_string!("Test String"),
+            common::HashedString::new("Test String2")
+        );
+        assert_ne!(
+            hashed_string!("Test String"),
+            common::HashedString::new_static("Test String2")
+        );
+    }
+
+    #[test]
+    fn hasehed_match_works() {
+        let string = hashed_string!("Test String");
+        let result = match string {
+            hashed_match!("Test String 2") => false,
+            hashed_match!("Test String") => true,
+            _ => false,
+        };
+
+        assert!(result);
     }
 }

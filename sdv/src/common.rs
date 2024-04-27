@@ -17,7 +17,7 @@ use crate::gamedata::sub_field_value;
 use crate::gamedata::{decimal, sub_field};
 use crate::save::{Finder, NodeFinder, SaveError, SaveResult};
 
-pub use sdv_core::ItemId;
+pub use sdv_core::{HashedString, ItemId};
 pub use xnb::XnbType;
 
 #[derive(Clone, Debug, Deserialize, EnumString, Eq, PartialEq, Serialize, XnbType)]

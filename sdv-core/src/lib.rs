@@ -6,147 +6,55 @@ use std::{
 };
 
 use anyhow::anyhow;
-use nom::{
-    branch::alt,
-    bytes::complete::tag,
-    character::complete::{alpha1, alphanumeric1},
-    combinator::recognize,
-    multi::many0_count,
-    sequence::pair,
-    IResult,
-};
 use serde::{Deserialize, Serialize};
 use xxhash_rust::xxh32::xxh32;
+mod parser;
 
-fn big_craftable(input: &str) -> IResult<&str, ItemId> {
-    let (input, _) = tag("(BC)")(input)?;
-    let (input, id) = bare_item_id(input)?;
-
-    Ok((input, ItemId::BigCraftable(id)))
+#[derive(Clone, Debug)]
+#[doc(hidden)]
+pub enum OriginalString {
+    Static(&'static str),
+    Owned(String),
 }
 
-fn boot(input: &str) -> IResult<&str, ItemId> {
-    let (input, _) = tag("(B)")(input)?;
-    let (input, id) = bare_item_id(input)?;
-
-    Ok((input, ItemId::Boot(id)))
+#[derive(Clone, Debug)]
+pub struct HashedString {
+    pub hash: u32,
+    #[doc(hidden)]
+    pub original: OriginalString,
 }
 
-fn flooring(input: &str) -> IResult<&str, ItemId> {
-    let (input, _) = tag("(FL)")(input)?;
-    let (input, id) = bare_item_id(input)?;
+impl HashedString {
+    pub fn new(s: &str) -> Self {
+        let hash = xxh32(s.as_bytes(), 0);
+        Self {
+            hash,
+            original: OriginalString::Owned(s.to_string()),
+        }
+    }
 
-    Ok((input, ItemId::Flooring(id)))
+    pub fn new_static(s: &'static str) -> Self {
+        let hash = xxh32(s.as_bytes(), 0);
+        Self {
+            hash,
+            original: OriginalString::Static(s),
+        }
+    }
 }
 
-fn furniture(input: &str) -> IResult<&str, ItemId> {
-    let (input, _) = tag("(F)")(input)?;
-    let (input, id) = bare_item_id(input)?;
-
-    Ok((input, ItemId::Furniture(id)))
+impl PartialEq for HashedString {
+    fn eq(&self, other: &Self) -> bool {
+        self.hash == other.hash
+    }
 }
 
-fn hat(input: &str) -> IResult<&str, ItemId> {
-    let (input, _) = tag("(H)")(input)?;
-    let (input, id) = bare_item_id(input)?;
-
-    Ok((input, ItemId::Hat(id)))
-}
-
-fn mannequin(input: &str) -> IResult<&str, ItemId> {
-    let (input, _) = tag("(M)")(input)?;
-    let (input, id) = bare_item_id(input)?;
-
-    Ok((input, ItemId::Mannequin(id)))
-}
-
-fn object(input: &str) -> IResult<&str, ItemId> {
-    let (input, _) = tag("(O)")(input)?;
-    let (input, id) = bare_item_id(input)?;
-
-    Ok((input, ItemId::Object(id)))
-}
-
-fn pants(input: &str) -> IResult<&str, ItemId> {
-    let (input, _) = tag("(P)")(input)?;
-    let (input, id) = bare_item_id(input)?;
-
-    Ok((input, ItemId::Pants(id)))
-}
-
-fn shirt(input: &str) -> IResult<&str, ItemId> {
-    let (input, _) = tag("(S)")(input)?;
-    let (input, id) = bare_item_id(input)?;
-
-    Ok((input, ItemId::Shirt(id)))
-}
-
-fn tool(input: &str) -> IResult<&str, ItemId> {
-    let (input, _) = tag("(T)")(input)?;
-    let (input, id) = bare_item_id(input)?;
-
-    Ok((input, ItemId::Tool(id)))
-}
-
-fn trinket(input: &str) -> IResult<&str, ItemId> {
-    let (input, _) = tag("(TR)")(input)?;
-    let (input, id) = bare_item_id(input)?;
-
-    Ok((input, ItemId::Trinket(id)))
-}
-
-fn wallpaper(input: &str) -> IResult<&str, ItemId> {
-    let (input, _) = tag("(WP)")(input)?;
-    let (input, id) = bare_item_id(input)?;
-
-    Ok((input, ItemId::Wallpaper(id)))
-}
-
-fn weapon(input: &str) -> IResult<&str, ItemId> {
-    let (input, _) = tag("(W)")(input)?;
-    let (input, id) = bare_item_id(input)?;
-
-    Ok((input, ItemId::Weapon(id)))
-}
-
-fn untagged(input: &str) -> IResult<&str, ItemId> {
-    let (input, id) = bare_item_id(input)?;
-
-    Ok((input, ItemId::Object(id)))
-}
-
-// From nom::recipes
-pub fn identifier(input: &str) -> IResult<&str, &str> {
-    recognize(pair(
-        alt((alpha1, tag("_"))),
-        many0_count(alt((alphanumeric1, tag("_")))),
-    ))(input)
-}
-
-fn bare_item_id(input: &str) -> IResult<&str, u32> {
-    let (input, id) = alt((identifier, alphanumeric1))(input)?;
-    let hashed_id = xxh32(id.as_bytes(), 0);
-
-    Ok((input, hashed_id))
-}
-
-fn item_id(input: &str) -> IResult<&str, ItemId> {
-    alt((
-        big_craftable,
-        boot,
-        flooring,
-        furniture,
-        hat,
-        mannequin,
-        object,
-        pants,
-        shirt,
-        tool,
-        trinket,
-        wallpaper,
-        weapon,
-        untagged,
-    ))(input)
+impl Display for HashedString {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.original {
+            OriginalString::Static(s) => f.write_str(s),
+            OriginalString::Owned(s) => f.write_str(s),
+        }
+    }
 }
 
 #[derive(Clone, Deserialize, Eq, Hash, PartialEq, Serialize)]
@@ -258,7 +166,7 @@ impl FromStr for ItemId {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let (rest, id) = item_id(s).map_err(|_| anyhow!("Can't parse item id \"{s}\""))?;
+        let (rest, id) = parser::item_id(s).map_err(|_| anyhow!("Can't parse item id \"{s}\""))?;
         if !rest.is_empty() {
             return Err(anyhow!("trailing input at end of valid item id \"{s}\""));
         }
@@ -326,5 +234,65 @@ mod tests {
     #[test]
     fn trailing_input_returns_error() {
         assert!("(BC)123💣".parse::<ItemId>().is_err());
+    }
+
+    #[test]
+    fn owned_hash_string_calculates_hash() {
+        let s = HashedString::new("Test String");
+        assert_eq!(s.hash, xxh32("Test String".as_bytes(), 0));
+    }
+
+    #[test]
+    fn owned_hash_string_diplays_corrrectly() {
+        let s = HashedString::new("Test String");
+        assert_eq!(format!("{s}"), "Test String".to_string());
+    }
+
+    #[test]
+    fn static_hash_string_calculates_hash() {
+        let s = HashedString::new_static("Test String");
+        assert_eq!(s.hash, xxh32("Test String".as_bytes(), 0));
+    }
+
+    #[test]
+    fn static_hash_string_diplays_corrrectly() {
+        let s = HashedString::new_static("Test String");
+        assert_eq!(format!("{s}"), "Test String".to_string());
+    }
+
+    #[test]
+    fn hash_string_equality_works() {
+        assert_eq!(
+            HashedString::new_static("Test String"),
+            HashedString::new_static("Test String")
+        );
+        assert_eq!(
+            HashedString::new("Test String"),
+            HashedString::new_static("Test String")
+        );
+        assert_eq!(
+            HashedString::new_static("Test String"),
+            HashedString::new("Test String")
+        );
+        assert_eq!(
+            HashedString::new("Test String"),
+            HashedString::new("Test String")
+        );
+        assert_ne!(
+            HashedString::new_static("Test String"),
+            HashedString::new_static("Test String2")
+        );
+        assert_ne!(
+            HashedString::new("Test String"),
+            HashedString::new_static("Test String2")
+        );
+        assert_ne!(
+            HashedString::new_static("Test String"),
+            HashedString::new("Test String2")
+        );
+        assert_ne!(
+            HashedString::new("Test String"),
+            HashedString::new("Test String2")
+        );
     }
 }

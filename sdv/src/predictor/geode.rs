@@ -3,6 +3,7 @@ use std::convert::{TryFrom, TryInto};
 use anyhow::Result;
 use num_derive::FromPrimitive;
 use sdv_core::HashedString;
+use serde::{Deserialize, Serialize};
 use strum::{EnumIter, EnumString};
 
 use crate::{
@@ -16,7 +17,20 @@ use crate::{
 
 use super::{DropReward, PredictionGameState};
 
-#[derive(Clone, Copy, Debug, EnumIter, EnumString, Eq, FromPrimitive, Hash, PartialEq)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Deserialize,
+    EnumIter,
+    EnumString,
+    Eq,
+    FromPrimitive,
+    Hash,
+    PartialEq,
+    Serialize,
+)]
+#[serde(rename_all = "snake_case")]
 pub enum GeodeType {
     Geode = 535,
     FrozenGeode = 536,
@@ -159,7 +173,7 @@ pub fn predict_single_geode<G: SeedGenerator>(
     }
 
     // If the geode specific drop processing failed above, proceed to generic geode processing.
-    let mut amount = rng.next_max(3) as usize * 2 + 1;
+    let mut amount = rng.next_max(3) as u32 * 2 + 1;
     if rng.next_weighted_bool(0.1) {
         amount = 10;
     }

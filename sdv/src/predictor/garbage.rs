@@ -33,30 +33,24 @@ struct GarbageDrop {
 #[derive(Clone, Debug)]
 pub struct GarbageCan {
     pub location: GarbageCanLocation,
-    base_chance: f32, // Includes default base chance and book calculation
+    base_chance: f32, // Includes default base chance
     hashed_id: i32,
     items: Vec<GarbageDrop>,
 }
 
 impl GarbageCan {
-    pub fn new(
-        location: GarbageCanLocation,
-        data: &GarbageCanData,
-        state: &PredictionGameState,
-    ) -> Result<Self> {
+    pub fn new(location: GarbageCanLocation, data: &GarbageCanData) -> Result<Self> {
         let location_str = location.to_string();
         let can_data = data
             .garbage_cans
             .get(&location_str)
             .ok_or_else(|| anyhow!("Can't get trash can data for {location_str}"))?;
-        let mut base_chance = if can_data.base_chance > 0. {
+        let base_chance = if can_data.base_chance > 0. {
             can_data.base_chance
         } else {
             data.default_base_chance
         };
-        if state.has_trash_book {
-            base_chance += 0.2;
-        }
+
         let hashed_id = 777 + xxh32(location_str.as_bytes(), 0) as i32;
 
         let mut items = data.before_all.clone();
@@ -229,7 +223,13 @@ pub fn predict_garbage<G: SeedGenerator>(
         }
     }
 
-    let base_chance_passed = daily_luck_bool(&mut r, can.base_chance as f64);
+    let base_chance = if state.has_trash_book {
+        can.base_chance + 0.2
+    } else {
+        can.base_chance
+    };
+
+    let base_chance_passed = daily_luck_bool(&mut r, base_chance as f64);
 
     for item in &can.items {
         if base_chance_passed.into() || item.ignore_base_chance {
@@ -271,7 +271,7 @@ mod tests {
         };
         GarbageCanLocation::iter()
             .filter_map(|location| {
-                let can = GarbageCan::new(location, &data.garbage_cans, &state).unwrap();
+                let can = GarbageCan::new(location, &data.garbage_cans).unwrap();
                 let prediction = predict_garbage::<HashedSeedGenerator>(&can, &state).unwrap();
                 prediction.map(|(drop, min_luck)| Ok((can.location, drop, min_luck)))
             })

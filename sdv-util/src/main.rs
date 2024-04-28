@@ -1230,7 +1230,7 @@ fn cmd_predict_garbage(opt: &GameContentLoc) -> Result<()> {
         ..Default::default()
     };
     let cans = GarbageCanLocation::iter()
-        .map(|location| GarbageCan::new(location, &data.garbage_cans, &state))
+        .map(|location| GarbageCan::new(location, &data.garbage_cans))
         .collect::<Result<Vec<_>>>()?;
     println!("{:?}", item_id!("RANDOM_BASE_SEASON_ITEM"));
     let special_items = HashMap::from([

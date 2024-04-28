@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{
     common::Season,
     generate_day_save_seed,
@@ -6,7 +8,8 @@ use crate::{
 
 use super::PredictionGameState;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum NightEvent {
     RacoonStump,
     Fairy,

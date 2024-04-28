@@ -101,11 +101,11 @@ impl PredictionGameState {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DropReward {
     pub item: ItemId,
-    pub quantity: usize,
+    pub quantity: u32,
 }
 
 impl DropReward {
-    pub const fn new(item: ItemId, quantity: usize) -> Self {
+    pub const fn new(item: ItemId, quantity: u32) -> Self {
         Self { item, quantity }
     }
 }
@@ -158,7 +158,7 @@ impl Drop {
             let _ = rng.next_double();
         }
 
-        Ok(DropReward::new(item.clone(), stack_size as usize))
+        Ok(DropReward::new(item.clone(), stack_size as u32))
     }
 }
 
